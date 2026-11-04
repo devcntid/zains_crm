@@ -1,12 +1,17 @@
 import { Users } from "lucide-react";
 import { DonorCreateButton } from "@/components/forms/donor-form";
 import { DonorsTable, QueryBuilderPanel } from "@/components/donor/donors-client";
+import { listFieldDefinitions } from "@/lib/db/queries/catalog";
 import { listDonors } from "@/lib/db/queries/donors";
+import { listTags } from "@/lib/db/queries/tags";
+import type { FieldDef } from "@/lib/org/field-value";
 
 export const metadata = { title: "Donors — CRM RN", description: "Daftar donatur" };
 
 export default async function DonorsPage() {
   const { rows, total } = await listDonors({ limit: 100 });
+  const fields = (await listFieldDefinitions()) as FieldDef[];
+  const tags = await listTags();
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -16,8 +21,8 @@ export default async function DonorsPage() {
         </div>
         <DonorCreateButton />
       </div>
-      <QueryBuilderPanel />
-      <DonorsTable rows={rows as never[]} />
+      <QueryBuilderPanel fields={fields} tags={tags} />
+      <DonorsTable rows={rows as never[]} fields={fields} tags={tags} />
     </div>
   );
 }

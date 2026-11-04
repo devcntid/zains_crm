@@ -14,6 +14,7 @@ export type DonorListRow = {
   tags: string[];
   assigned_to: string | null;
   assigned_nama: string | null;
+  dynamic: Record<string, unknown>;
   follow_up_status: string | null;
   follow_up_due_date: string | null;
   last_donation_at: string | null;
@@ -41,7 +42,17 @@ export async function listDonors(opts: {
       d.id, d.no_hp_canonical, d.nama_lengkap, d.email, d.status_kontak, d.segmen_rfm,
       d.skor_r, d.skor_f, d.skor_m, d.tags, d.assigned_to, u.nama AS assigned_nama,
       d.follow_up_status, d.follow_up_due_date, d.last_donation_at, d.last_donation_nominal,
-      p.nama AS last_donation_program_nama, d.total_donation_lifetime, d.total_donation_count
+      p.nama AS last_donation_program_nama, d.total_donation_lifetime, d.total_donation_count,
+      COALESCE((
+        SELECT jsonb_object_agg(
+          fd.slug,
+          COALESCE(ddf.value_json, to_jsonb(ddf.value_text), to_jsonb(ddf.value_number),
+                   to_jsonb(ddf.value_date), to_jsonb(ddf.value_boolean))
+        )
+        FROM donor_dynamic_fields ddf
+        JOIN field_definitions fd ON fd.id = ddf.field_def_id AND fd.is_active = TRUE
+        WHERE ddf.donor_id = d.id
+      ), '{}'::jsonb) AS dynamic
     FROM donor_search_index i
     JOIN donors d ON d.id = i.donor_id
     LEFT JOIN users u ON u.id = d.assigned_to
@@ -131,6 +142,29 @@ export async function updateDonor(id: string, patch: Record<string, unknown>) {
       follow_up_due_date = COALESCE(${due}::date, follow_up_due_date),
       tags = COALESCE(${tags}::text[], tags)
     WHERE id = ${id}
+  `;
+  await sql`SELECT fn_rebuild_search_index(${id}::bigint)`;
+  return getDonorById(id);
+}
+
+export async function addDonorTag(id: string, slug: string) {
+  const sql = getDb();
+  await sql`
+    UPDATE donors SET tags = CASE
+      WHEN tags @> ARRAY[${slug}]::text[] THEN tags
+      ELSE array_append(tags, ${slug})
+    END
+    WHERE id = ${id}::bigint AND deleted_at IS NULL
+  `;
+  await sql`SELECT fn_rebuild_search_index(${id}::bigint)`;
+  return getDonorById(id);
+}
+
+export async function removeDonorTag(id: string, slug: string) {
+  const sql = getDb();
+  await sql`
+    UPDATE donors SET tags = array_remove(tags, ${slug})
+    WHERE id = ${id}::bigint AND deleted_at IS NULL
   `;
   await sql`SELECT fn_rebuild_search_index(${id}::bigint)`;
   return getDonorById(id);

@@ -318,6 +318,17 @@ export const extensionConfigs = pgTable("extension_configs", {
   updatedAt: ts("updated_at").notNull().defaultNow(),
 });
 
+export const tagDefinitions = pgTable("tag_definitions", {
+  id: bigserial("id", { mode: "bigint" }).primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  nama: varchar("nama", { length: 120 }).notNull(),
+  warna: varchar("warna", { length: 7 }).notNull().default("#01665a"),
+  deskripsi: text("deskripsi"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow(),
+});
+
 export const orgProfile = pgTable("org_profile", {
   id: smallint("id").primaryKey().default(1),
   nama: varchar("nama", { length: 200 }).notNull(),

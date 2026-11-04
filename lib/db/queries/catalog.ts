@@ -122,15 +122,146 @@ export async function upsertFieldDefinition(input: {
   label: string;
   tipe: string;
   optionsJson?: unknown;
+  isRequired?: boolean;
+  isSearchable?: boolean;
+  isActive?: boolean;
+  visibleInJson?: string[];
+  sortOrder?: number;
   createdBy: string;
 }) {
   const sql = getDb();
-  return sql`
-    INSERT INTO field_definitions (slug, label, tipe, options_json, created_by)
-    VALUES (${input.slug}, ${input.label}, ${input.tipe}, ${JSON.stringify(input.optionsJson ?? [])}::jsonb, ${input.createdBy})
-    ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, tipe = EXCLUDED.tipe
+  const createdBy = input.createdBy === "0" ? null : input.createdBy;
+  const rows = await sql`
+    INSERT INTO field_definitions (
+      slug, label, tipe, options_json, is_required, is_searchable, is_active,
+      visible_in_json, sort_order, created_by
+    )
+    VALUES (
+      ${input.slug}, ${input.label}, ${input.tipe},
+      ${JSON.stringify(input.optionsJson ?? [])}::jsonb,
+      ${input.isRequired ?? false}, ${input.isSearchable ?? true}, ${input.isActive ?? true},
+      ${JSON.stringify(input.visibleInJson ?? ["profil", "list", "export"])}::jsonb,
+      ${input.sortOrder ?? 0}, ${createdBy}
+    )
+    ON CONFLICT (slug) DO UPDATE SET
+      label = EXCLUDED.label,
+      tipe = EXCLUDED.tipe,
+      options_json = EXCLUDED.options_json,
+      is_required = EXCLUDED.is_required,
+      is_searchable = EXCLUDED.is_searchable,
+      is_active = EXCLUDED.is_active,
+      visible_in_json = EXCLUDED.visible_in_json,
+      sort_order = EXCLUDED.sort_order
     RETURNING *
   `;
+  return jsonSafe(rows);
+}
+
+export async function updateFieldDefinition(
+  id: string,
+  input: {
+    label?: string;
+    tipe?: string;
+    optionsJson?: unknown;
+    isRequired?: boolean;
+    isSearchable?: boolean;
+    isActive?: boolean;
+    visibleInJson?: string[];
+    sortOrder?: number;
+  },
+) {
+  const sql = getDb();
+  const rows = await sql`
+    UPDATE field_definitions SET
+      label = COALESCE(${input.label ?? null}, label),
+      tipe = COALESCE(${input.tipe ?? null}, tipe),
+      options_json = COALESCE(${input.optionsJson != null ? JSON.stringify(input.optionsJson) : null}::jsonb, options_json),
+      is_required = COALESCE(${input.isRequired ?? null}, is_required),
+      is_searchable = COALESCE(${input.isSearchable ?? null}, is_searchable),
+      is_active = COALESCE(${input.isActive ?? null}, is_active),
+      visible_in_json = COALESCE(${input.visibleInJson ? JSON.stringify(input.visibleInJson) : null}::jsonb, visible_in_json),
+      sort_order = COALESCE(${input.sortOrder ?? null}, sort_order)
+    WHERE id = ${id}::bigint
+    RETURNING *
+  `;
+  return jsonSafe(rows[0] ?? null);
+}
+
+export async function deactivateFieldDefinition(id: string) {
+  const sql = getDb();
+  await sql`UPDATE field_definitions SET is_active = FALSE WHERE id = ${id}::bigint`;
+}
+
+export async function listDonorDynamicValues(donorId: string) {
+  const sql = getDb();
+  return jsonSafe(
+    await sql`
+      SELECT
+        fd.id, fd.slug, fd.label, fd.tipe, fd.options_json, fd.is_required, fd.is_searchable,
+        fd.is_active, fd.visible_in_json, fd.sort_order,
+        ddf.value_text, ddf.value_number, ddf.value_date, ddf.value_boolean, ddf.value_json
+      FROM field_definitions fd
+      LEFT JOIN donor_dynamic_fields ddf
+        ON ddf.field_def_id = fd.id AND ddf.donor_id = ${donorId}::bigint
+      WHERE fd.is_active = TRUE
+      ORDER BY fd.sort_order, fd.label
+    `,
+  );
+}
+
+export async function saveDonorDynamicFields(
+  donorId: string,
+  values: Record<string, unknown>,
+  updatedBy: string,
+) {
+  const sql = getDb();
+  const defs = (await listFieldDefinitions()) as Array<{
+    id: string;
+    slug: string;
+    tipe: string;
+    is_active: boolean;
+  }>;
+  const userId = updatedBy === "0" ? null : updatedBy;
+  for (const fd of defs) {
+    if (!fd.is_active || !(fd.slug in values)) continue;
+    const raw = values[fd.slug];
+    let valueText: string | null = null;
+    let valueNumber: string | null = null;
+    let valueDate: string | null = null;
+    let valueBoolean: boolean | null = null;
+    let valueJson: string | null = null;
+    if (raw !== null && raw !== undefined && raw !== "") {
+      if (fd.tipe === "number") valueNumber = String(raw);
+      else if (fd.tipe === "date") valueDate = String(raw).slice(0, 10);
+      else if (fd.tipe === "boolean") valueBoolean = raw === true || raw === "true" || raw === "Ya";
+      else if (fd.tipe === "multiselect") {
+        const arr = Array.isArray(raw)
+          ? raw
+          : String(raw)
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+        valueJson = JSON.stringify(arr);
+      } else valueText = String(raw);
+    }
+    await sql`
+      INSERT INTO donor_dynamic_fields (
+        donor_id, field_def_id, value_text, value_number, value_date, value_boolean, value_json, updated_by
+      )
+      VALUES (
+        ${donorId}::bigint, ${fd.id}::bigint, ${valueText}, ${valueNumber}::numeric,
+        ${valueDate}::date, ${valueBoolean}, ${valueJson}::jsonb, ${userId}
+      )
+      ON CONFLICT (donor_id, field_def_id) DO UPDATE SET
+        value_text = EXCLUDED.value_text,
+        value_number = EXCLUDED.value_number,
+        value_date = EXCLUDED.value_date,
+        value_boolean = EXCLUDED.value_boolean,
+        value_json = EXCLUDED.value_json,
+        updated_by = EXCLUDED.updated_by
+    `;
+  }
+  await sql`SELECT fn_rebuild_search_index(${donorId}::bigint)`;
 }
 
 export async function listVendorProfiles() {
@@ -247,21 +378,113 @@ export async function getExtensionConfig(extType: string) {
   return rows[0] ?? null;
 }
 
-export async function searchDonorsByConditions(conditions: Array<{ field: string; op: string; value: string }>) {
-  const sql = getDb();
-  const parts: string[] = ["d.deleted_at IS NULL"];
-  for (const c of conditions) {
-    if (!c.field || !c.value) continue;
-    const field = c.field.replace(/[^a-z0-9_]/gi, "");
-    if (c.op === "eq") parts.push(`i.search_doc->>'${field}' = '${c.value.replace(/'/g, "''")}'`);
-    else if (c.op === "contains") parts.push(`i.search_doc->>'${field}' ILIKE '%${c.value.replace(/'/g, "''")}%'`);
+const CORE_SEARCH_FIELDS = new Set([
+  "nama",
+  "no_hp",
+  "email",
+  "status",
+  "segmen",
+  "follow_up_status",
+  "last_donation_date",
+  "assigned_to_id",
+]);
+
+function dynCompareSql(op: string, pSlug: string, pVal: string, pBool: string, pJson: string, pNum: string, pDate: string) {
+  const textExpr = `COALESCE(ddf.value_text, ddf.value_number::text, ddf.value_date::text, ddf.value_boolean::text)`;
+  if (op === "contains") {
+    return `(
+      ${textExpr} ILIKE '%' || ${pVal} || '%'
+      OR ddf.value_json ? ${pVal}
+      OR ddf.value_json::text ILIKE '%' || ${pVal} || '%'
+    )`;
   }
-  const where = parts.join(" AND ");
-  return sql.query(
-    `SELECT d.id, d.nama_lengkap, d.no_hp_canonical, d.segmen_rfm, d.status_kontak, d.total_donation_lifetime
-     FROM donor_search_index i JOIN donors d ON d.id = i.donor_id
-     WHERE ${where}
+  if (op === "gte") {
+    return `(
+      (${pNum} ~ '^-?[0-9]+(\\.[0-9]+)?$' AND ddf.value_number >= ${pNum}::numeric)
+      OR (${pDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND ddf.value_date >= ${pDate}::date)
+    )`;
+  }
+  if (op === "lte") {
+    return `(
+      (${pNum} ~ '^-?[0-9]+(\\.[0-9]+)?$' AND ddf.value_number <= ${pNum}::numeric)
+      OR (${pDate} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND ddf.value_date <= ${pDate}::date)
+    )`;
+  }
+  return `(
+    ${textExpr} = ${pVal}
+    OR (fd.tipe = 'boolean' AND ddf.value_boolean = ${pBool}::boolean)
+    OR ddf.value_json @> ${pJson}::jsonb
+  )`;
+}
+
+export async function searchDonorsByConditions(
+  conditions: Array<{ field: string; op: string; value: string }>,
+  match: "and" | "or" = "and",
+) {
+  const sql = getDb();
+  const params: unknown[] = [];
+  const add = (v: unknown) => {
+    params.push(v);
+    return `$${params.length}`;
+  };
+  const clauses: string[] = [];
+  for (const c of conditions) {
+    if (!c.field || c.value == null || c.value === "") continue;
+    const field = c.field.replace(/[^a-z0-9_]/gi, "");
+    if (!field) continue;
+    const op = ["eq", "contains", "gte", "lte", "contains_all", "contains_any"].includes(c.op) ? c.op : "eq";
+    const boolVal = c.value === "Ya" || c.value === "true" ? "true" : c.value === "Tidak" || c.value === "false" ? "false" : c.value;
+    if (field === "tags") {
+      const slugs = c.value
+        .split(",")
+        .map((s) => s.trim().replace(/[^a-z0-9_]/gi, ""))
+        .filter(Boolean);
+      if (slugs.length === 0) continue;
+      const p = add(slugs);
+      if (op === "contains_any") clauses.push(`d.tags && ${p}::text[]`);
+      else clauses.push(`d.tags @> ${p}::text[]`);
+    } else if (CORE_SEARCH_FIELDS.has(field)) {
+      const expr = `i.search_doc->>'${field}'`;
+      const p = add(c.value);
+      if (op === "contains") clauses.push(`${expr} ILIKE '%' || ${p} || '%'`);
+      else clauses.push(`${expr} = ${p}`);
+    } else {
+      const pSlug = add(field);
+      const pVal = add(c.value);
+      const pBool = add(boolVal);
+      const pJson = add(JSON.stringify([c.value]));
+      const pNum = add(c.value);
+      const pDate = add(c.value);
+      clauses.push(`EXISTS (
+        SELECT 1 FROM donor_dynamic_fields ddf
+        JOIN field_definitions fd ON fd.id = ddf.field_def_id
+        WHERE ddf.donor_id = d.id AND fd.is_active = TRUE AND fd.slug = ${pSlug}
+          AND ${dynCompareSql(op, pSlug, pVal, pBool, pJson, pNum, pDate)}
+      )`);
+    }
+  }
+  const filter = clauses.length === 0 ? "TRUE" : clauses.map((x) => `(${x})`).join(match === "or" ? " OR " : " AND ");
+  const result = await sql.query(
+    `SELECT d.id, d.nama_lengkap, d.no_hp_canonical, d.segmen_rfm, d.status_kontak, d.total_donation_lifetime,
+            d.tags, u.nama AS assigned_nama,
+            COALESCE((
+              SELECT jsonb_object_agg(
+                fd.slug,
+                COALESCE(ddf.value_json, to_jsonb(ddf.value_text), to_jsonb(ddf.value_number),
+                         to_jsonb(ddf.value_date), to_jsonb(ddf.value_boolean))
+              )
+              FROM donor_dynamic_fields ddf
+              JOIN field_definitions fd ON fd.id = ddf.field_def_id AND fd.is_active = TRUE
+              WHERE ddf.donor_id = d.id
+            ), '{}'::jsonb) AS dynamic
+     FROM donor_search_index i
+     JOIN donors d ON d.id = i.donor_id
+     LEFT JOIN users u ON u.id = d.assigned_to
+     WHERE d.deleted_at IS NULL AND (${filter})
      ORDER BY d.nama_lengkap
-     LIMIT 200`,
+     LIMIT 500`,
+    params,
   );
+  const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? []);
+  return jsonSafe(rows);
 }

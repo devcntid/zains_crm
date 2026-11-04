@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { CircleDot, Target, Wallet } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
-import { ProspectNoteForm } from "@/components/forms/donor-form";
+import { DonorIdentityForm, ProspectNoteForm } from "@/components/forms/donor-form";
+import { DonorDynamicFieldsForm } from "@/components/forms/donor-dynamic-fields";
+import { DonorTagsEditor } from "@/components/forms/donor-tags";
 import { Badge } from "@/components/shared/badge";
 import { getDonorById } from "@/lib/db/queries/donors";
-import { listProspectNotes, listTransactionsForDonor } from "@/lib/db/queries/catalog";
+import { listDonorDynamicValues, listProspectNotes, listTransactionsForDonor } from "@/lib/db/queries/catalog";
+import { listTags } from "@/lib/db/queries/tags";
+import { parseTagSlugs } from "@/lib/org/field-value";
 import { fmtRp, toNum } from "@/lib/utils/format";
 import { notFound } from "next/navigation";
 
@@ -16,6 +20,8 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
   if (!donor) notFound();
   const trx = (await listTransactionsForDonor(id)) as Array<Record<string, unknown>>;
   const notes = (await listProspectNotes(id)) as Array<Record<string, unknown>>;
+  const dynRows = (await listDonorDynamicValues(id)) as never[];
+  const catalog = await listTags();
 
   return (
     <div>
@@ -37,6 +43,12 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
             <div><strong>Email:</strong> {String(donor.email ?? "—")}</div>
             <div><strong>PIC:</strong> {String(donor.assigned_nama ?? "—")}</div>
           </div>
+          <DonorIdentityForm
+            donorId={id}
+            nama={String(donor.nama_lengkap ?? "")}
+            email={String(donor.email ?? "")}
+            status={String(donor.status_kontak ?? "aktif")}
+          />
         </div>
         <div className="rounded-[10px] bg-white p-[18px] shadow-sm">
           <div className="mb-1.5 flex items-center gap-1 text-[10px] font-bold text-[#888]">
@@ -66,6 +78,8 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
           </div>
         </div>
       </div>
+      <DonorTagsEditor donorId={id} tags={parseTagSlugs(donor.tags)} catalog={catalog} />
+      <DonorDynamicFieldsForm donorId={id} rows={dynRows} />
       <h2 className="text-[15px] font-bold text-primary">Transaksi</h2>
       <DataTable
         data={trx.map((r) => ({

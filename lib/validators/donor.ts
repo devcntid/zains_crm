@@ -27,10 +27,11 @@ export const prospectNoteSchema = z.object({
 });
 
 export const searchSchema = z.object({
+  match: z.enum(["and", "or"]).optional().default("and"),
   conditions: z.array(
     z.object({
       field: z.string(),
-      op: z.string(),
+      op: z.enum(["eq", "contains", "gte", "lte", "contains_all", "contains_any"]),
       value: z.string(),
     }),
   ),

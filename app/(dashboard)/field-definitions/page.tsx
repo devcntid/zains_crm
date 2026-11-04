@@ -1,21 +1,10 @@
-import { Settings } from "lucide-react";
-import { EntityPage } from "@/components/shared/entity-page";
+import { FieldDefinitionsManager } from "@/components/forms/field-definition-form";
 import { listFieldDefinitions } from "@/lib/db/queries/catalog";
+import type { FieldDef } from "@/lib/org/field-value";
 
 export const metadata = { title: "Fields — CRM RN", description: "Dynamic fields" };
 
 export default async function Page() {
-  const rows = (await listFieldDefinitions()) as Array<Record<string, unknown>>;
-  return (
-    <EntityPage
-      title="Dynamic Fields"
-      rows={rows as never[]}
-      columns={[
-        { key: "slug", label: "Slug" },
-        { key: "label", label: "Label" },
-        { key: "tipe", label: "Tipe" },
-        { key: "is_searchable", label: "Searchable" },
-      ]}
-    />
-  );
+  const rows = (await listFieldDefinitions()) as FieldDef[];
+  return <FieldDefinitionsManager rows={rows} />;
 }

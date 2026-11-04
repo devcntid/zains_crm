@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Columns3, Download, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SearchSelect } from "@/components/shared/search-select";
 import { downloadXlsx } from "@/lib/utils/export-xlsx";
@@ -11,6 +11,9 @@ export type Column<T> = {
   render?: (row: T) => React.ReactNode;
   exportValue?: (row: T) => string | number | null | undefined;
   className?: string;
+  hideable?: boolean;
+  defaultHidden?: boolean;
+  includeInExport?: boolean;
 };
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -34,17 +37,31 @@ export function DataTable<T extends { id?: string | number }>({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [term, setTerm] = useState("");
+  const [hidden, setHidden] = useState<Set<string>>(
+    () => new Set(columns.filter((c) => c.defaultHidden).map((c) => c.key)),
+  );
+  const [colsOpen, setColsOpen] = useState(false);
+
+  const visibleColumns = useMemo(() => columns.filter((c) => !hidden.has(c.key)), [columns, hidden]);
+  const exportColumns = useMemo(
+    () =>
+      columns.filter((c) => {
+        if (c.includeInExport === false) return false;
+        return !hidden.has(c.key) || c.includeInExport;
+      }),
+    [columns, hidden],
+  );
 
   const filtered = useMemo(() => {
     const q = term.trim().toLowerCase();
     if (!q) return data;
     return data.filter((row) => {
       const rec = row as Record<string, unknown>;
-      const fromCols = columns.some((c) => String(rec[c.key] ?? "").toLowerCase().includes(q));
+      const fromCols = visibleColumns.some((c) => String(rec[c.key] ?? "").toLowerCase().includes(q));
       if (fromCols) return true;
       return Object.values(rec).some((v) => v != null && typeof v !== "object" && String(v).toLowerCase().includes(q));
     });
-  }, [data, term, columns]);
+  }, [data, term, visibleColumns]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
@@ -63,9 +80,9 @@ export function DataTable<T extends { id?: string | number }>({
   const from = total === 0 ? 0 : start + 1;
   const to = start + rows.length;
 
-  const titleCol = columns[0];
-  const restCols = columns.slice(1, 5);
-  const colSpan = columns.length + 1 + (selectable ? 1 : 0);
+  const titleCol = visibleColumns[0];
+  const restCols = visibleColumns.slice(1, 5);
+  const colSpan = visibleColumns.length + 1 + (selectable ? 1 : 0);
 
   function goto(p: number) {
     setPage(Math.max(1, Math.min(pageCount, p)));
@@ -75,7 +92,7 @@ export function DataTable<T extends { id?: string | number }>({
     await downloadXlsx({
       filename: exportFilename,
       sheetName: exportFilename,
-      columns,
+      columns: exportColumns,
       rows: sorted,
     });
   }
@@ -92,6 +109,38 @@ export function DataTable<T extends { id?: string | number }>({
           setPage(1);
         }}
       />
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-[#ddd] bg-white px-2.5 text-[12px] font-semibold text-[#333]"
+          onClick={() => setColsOpen((v) => !v)}
+        >
+          <Columns3 size={14} />
+          Kolom
+        </button>
+        {colsOpen && (
+          <div className="absolute right-0 z-20 mt-1 max-h-64 w-56 overflow-auto rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-lg">
+            {columns.map((c) => (
+              <label key={c.key} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] hover:bg-[#f6fffe]">
+                <input
+                  type="checkbox"
+                  checked={!hidden.has(c.key)}
+                  disabled={c.hideable === false && !hidden.has(c.key) && visibleColumns.length <= 1}
+                  onChange={(e) => {
+                    setHidden((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) next.delete(c.key);
+                      else if (visibleColumns.length > 1) next.add(c.key);
+                      return next;
+                    });
+                  }}
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         type="button"
         className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-[#ddd] bg-white px-2.5 text-[12px] font-semibold text-[#333] disabled:opacity-40"
@@ -199,7 +248,7 @@ export function DataTable<T extends { id?: string | number }>({
               <tr className="text-left text-[12px] font-semibold text-white">
                 {selectable && <th className="w-10 bg-[var(--primary)] px-3 py-2.5" />}
                 <th className="w-12 bg-[var(--primary)] px-3 py-2.5">No</th>
-                {columns.map((c) => (
+                {visibleColumns.map((c) => (
                   <th
                     key={c.key}
                     className={`cursor-pointer bg-[var(--primary)] px-3 py-2.5 ${c.className ?? ""}`}
@@ -241,7 +290,7 @@ export function DataTable<T extends { id?: string | number }>({
                       </td>
                     )}
                     <td className="px-3 py-2 tabular-nums text-[#888]">{start + i + 1}</td>
-                    {columns.map((c) => (
+                    {visibleColumns.map((c) => (
                       <td key={c.key} className="px-3 py-2">
                         {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—")}
                       </td>

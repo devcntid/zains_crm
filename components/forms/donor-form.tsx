@@ -55,6 +55,68 @@ export function DonorCreateButton() {
   );
 }
 
+export function DonorIdentityForm({
+  donorId,
+  nama,
+  email,
+  status,
+}: {
+  donorId: string;
+  nama: string;
+  email: string;
+  status: string;
+}) {
+  const router = useRouter();
+  const [namaLengkap, setNamaLengkap] = useState(nama);
+  const [mail, setMail] = useState(email);
+  const [statusKontak, setStatusKontak] = useState(status);
+
+  async function save() {
+    const res = await fetch(`/api/donors/${donorId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        namaLengkap,
+        email: mail || null,
+        statusKontak,
+      }),
+    });
+    if (!res.ok) {
+      toast.error("Gagal menyimpan profil");
+      return;
+    }
+    toast.success("Profil donatur tersimpan");
+    router.refresh();
+  }
+
+  return (
+    <div className="mt-3 border-t border-[#eee] pt-3">
+      <div className="grid grid-cols-1 gap-2">
+        <label className="block text-[12px]">
+          <span className="mb-1 block font-semibold">Nama</span>
+          <input className="w-full rounded-xl border border-[#ddd] px-3 py-2 text-[13px]" value={namaLengkap} onChange={(e) => setNamaLengkap(e.target.value)} />
+        </label>
+        <label className="block text-[12px]">
+          <span className="mb-1 block font-semibold">Email</span>
+          <input className="w-full rounded-xl border border-[#ddd] px-3 py-2 text-[13px]" value={mail} onChange={(e) => setMail(e.target.value)} />
+        </label>
+        <label className="block text-[12px]">
+          <span className="mb-1 block font-semibold">Status</span>
+          <SearchSelect
+            allowClear={false}
+            value={statusKontak}
+            options={["aktif", "mati", "diblokir", "opt_out"].map((v) => ({ value: v, label: v }))}
+            onChange={setStatusKontak}
+          />
+        </label>
+      </div>
+      <button type="button" className="mt-3 rounded-xl bg-[var(--primary)] px-3.5 py-2 text-[12px] font-semibold text-white" onClick={() => void save()}>
+        Simpan profil
+      </button>
+    </div>
+  );
+}
+
 export function ProspectNoteForm({ donorId }: { donorId: string }) {
   const [catatan, setCatatan] = useState("");
   const [respon, setRespon] = useState("merespon");

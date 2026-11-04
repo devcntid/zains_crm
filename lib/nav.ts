@@ -28,6 +28,7 @@ export const NAV = [
     group: "Konfigurasi",
     items: [
       { href: "/field-definitions", label: "Field dinamis" },
+      { href: "/tags", label: "Label donatur" },
       { href: "/users", label: "Pengguna" },
       { href: "/data-imports", label: "Impor data" },
       { href: "/extensions", label: "Ekstensi" },

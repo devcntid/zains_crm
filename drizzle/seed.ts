@@ -30,6 +30,29 @@ async function seedBaseline(sql: Sql) {
     ["version", "2.0.0", "Versi skema DB"],
   ];
 
+  const tagCatalog: [string, string, string][] = [
+    ["prioritas", "Prioritas", "#c0392b"],
+    ["loyal", "Loyal", "#01665a"],
+    ["qurban_rutin", "Qurban rutin", "#8e44ad"],
+    ["high_value", "High value", "#d35400"],
+    ["wakaf", "Wakaf", "#1e8449"],
+    ["ramadan_rutin", "Ramadan rutin", "#1a5276"],
+    ["ibu_rt", "Ibu RT", "#b9770e"],
+    ["perlu_reengagement", "Perlu re-engagement", "#e74c3c"],
+    ["champion_lama", "Champion lama", "#7d3c98"],
+    ["new_donor", "Donatur baru", "#3498db"],
+    ["merged_3_ids", "Merged 3 IDs", "#7f8c8d"],
+    ["overdue_followup", "Follow-up overdue", "#922b21"],
+  ];
+  for (const [slug, nama, warna] of tagCatalog) {
+    await sql.query(
+      `INSERT INTO tag_definitions (slug, nama, warna, is_active)
+       VALUES ($1, $2, $3, TRUE)
+       ON CONFLICT (slug) DO UPDATE SET nama = EXCLUDED.nama, warna = EXCLUDED.warna`,
+      [slug, nama, warna],
+    );
+  }
+
   for (const [key, value, description] of configs) {
     await sql.query(
       `INSERT INTO app_config (key, value, description)

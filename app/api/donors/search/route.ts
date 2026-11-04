@@ -8,6 +8,6 @@ export async function POST(req: Request) {
   if (g.error) return g.error;
   const parsed = searchSchema.safeParse(await req.json());
   if (!parsed.success) return zodError(parsed.error);
-  const rows = await searchDonorsByConditions(parsed.data.conditions);
+  const rows = await searchDonorsByConditions(parsed.data.conditions, parsed.data.match);
   return NextResponse.json({ rows });
 }

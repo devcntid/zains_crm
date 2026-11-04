@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { DataTable } from "@/components/data-table/data-table";
+import { DataTable, type Column } from "@/components/data-table/data-table";
 import { QueryBuilder } from "@/components/query-builder/query-builder";
 import { Badge } from "@/components/shared/badge";
+import { TagChips } from "@/components/shared/tag-chips";
+import { dynKey, fieldVisible, formatFieldValue, formatTagNames, parseTagSlugs, type FieldDef, type TagCatalogItem } from "@/lib/org/field-value";
 import { fmtRp, toNum } from "@/lib/utils/format";
 import { useState } from "react";
 
@@ -25,25 +27,61 @@ type Row = {
   segmen_rfm: string | null;
   total_donation_lifetime: string;
   assigned_nama: string | null;
+  tags?: unknown;
+  dynamic?: Record<string, unknown>;
 };
 
-export function QueryBuilderPanel() {
+function withDynamic(rows: Row[], fields: FieldDef[]): Row[] {
+  return rows.map((r) => {
+    const extra: Record<string, unknown> = { ...r };
+    for (const fd of fields) {
+      extra[dynKey(fd.slug)] = formatFieldValue(fd.tipe, r.dynamic?.[fd.slug]);
+    }
+    return extra as Row;
+  });
+}
+
+function dynamicColumns(fields: FieldDef[]): Column<Row>[] {
+  return fields
+    .filter((fd) => fd.is_active && (fieldVisible(fd, "list") || fieldVisible(fd, "export")))
+    .map((fd) => ({
+      key: dynKey(fd.slug),
+      label: fd.label,
+      hideable: true,
+      defaultHidden: !fieldVisible(fd, "list"),
+      includeInExport: fieldVisible(fd, "export"),
+      exportValue: (d) => formatFieldValue(fd.tipe, d.dynamic?.[fd.slug]),
+    }));
+}
+
+function tagColumn(catalog: TagCatalogItem[]): Column<Row> {
+  return {
+    key: "tags",
+    label: "Label",
+    render: (d) => <TagChips slugs={parseTagSlugs(d.tags)} catalog={catalog} />,
+    exportValue: (d) => formatTagNames(parseTagSlugs(d.tags), catalog),
+  };
+}
+
+export function QueryBuilderPanel({ fields, tags }: { fields: FieldDef[]; tags: TagCatalogItem[] }) {
   const [rows, setRows] = useState<Row[] | null>(null);
   const router = useRouter();
   return (
     <>
-      <QueryBuilder onResults={(r) => setRows(r as Row[])} />
+      <QueryBuilder extraFields={fields.filter((f) => f.is_active)} tags={tags} onResults={(r) => setRows(r as Row[])} />
       {rows && (
         <div className="mb-3">
           <div className="mb-1 text-[12px] text-[#666]">Hasil query: {rows.length}</div>
           <DataTable
-            data={rows}
+            data={withDynamic(rows, fields)}
             exportFilename="hasil-query"
             onRow={(r) => router.push(`/donors/${r.id}`)}
             columns={[
               { key: "nama_lengkap", label: "Nama" },
               { key: "no_hp_canonical", label: "HP" },
               { key: "segmen_rfm", label: "Segmen", exportValue: (d) => d.segmen_rfm || "" },
+              tagColumn(tags),
+              ...dynamicColumns(fields),
             ]}
           />
         </div>
@@ -52,11 +90,11 @@ export function QueryBuilderPanel() {
   );
 }
 
-export function DonorsTable({ rows }: { rows: Row[] }) {
+export function DonorsTable({ rows, fields, tags }: { rows: Row[]; fields: FieldDef[]; tags: TagCatalogItem[] }) {
   const router = useRouter();
   return (
     <DataTable
-      data={rows}
+      data={withDynamic(rows, fields)}
       exportFilename="donatur"
       onRow={(r) => router.push(`/donors/${r.id}`)}
       columns={[
@@ -81,6 +119,8 @@ export function DonorsTable({ rows }: { rows: Row[] }) {
           render: (d) => d.assigned_nama || "—",
           exportValue: (d) => d.assigned_nama || "—",
         },
+        tagColumn(tags),
+        ...dynamicColumns(fields),
       ]}
     />
   );
