@@ -142,7 +142,7 @@ async function seedSample(sql: Sql) {
   const demoHash = await hash("password123", 12);
   const sampleUsers = [
     ["Regi Fajar R.", "regi@cnt.id", "supervisor"],
-    ["Rizky Bachtiar", "rizky@cnt.id", "supervisor"],
+    ["Dev", "dev@cnt.id", "supervisor"],
     ["Sari Rahmawati", "sari@rn.org", "data_analyst"],
     ["Dian Kusuma", "dian@rn.org", "data_analyst"],
     ["Budi Santoso", "budi@rn.org", "tim_blast"],

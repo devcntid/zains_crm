@@ -1111,7 +1111,7 @@ INSERT INTO app_config (key, value, description) VALUES
 -- USERS
 -- ============================================================
 INSERT INTO users (id, nama, email, password_hash, role) VALUES
-( 1, 'Admin Sistem',      'admin@rn.org',    '$2b$12$xxx', 'admin'),
+( 1, 'Admin Sistem',      'dev@cnt.id',    '$2b$12$xxx', 'admin'),
 ( 2, 'Regi Fajar R.',     'regi@cnt.id',     '$2b$12$xxx', 'supervisor'),
 ( 3, 'Rizky Bachtiar',    'rizky@cnt.id',    '$2b$12$xxx', 'supervisor'),
 ( 4, 'Sari Rahmawati',    'sari@rn.org',     '$2b$12$xxx', 'data_analyst'),

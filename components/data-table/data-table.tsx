@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Columns3, Download, Search } from "lucide-re
 import { useMemo, useState } from "react";
 import { SearchSelect } from "@/components/shared/search-select";
 import { downloadXlsx } from "@/lib/utils/export-xlsx";
+import { formatCell } from "@/lib/utils/format";
 
 export type Column<T> = {
   key: string;
@@ -221,7 +222,7 @@ export function DataTable<T extends { id?: string | number }>({
                 <div className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-[11px] font-bold text-[#888]">{start + i + 1}.</span>
                   <div className="min-w-0 text-[14px] font-semibold text-[#1a1a1a]">
-                    {titleCol?.render ? titleCol.render(row) : String((row as Record<string, unknown>)[titleCol?.key ?? ""] ?? "—")}
+                    {titleCol?.render ? titleCol.render(row) : formatCell((row as Record<string, unknown>)[titleCol?.key ?? ""])}
                   </div>
                 </div>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
@@ -229,7 +230,7 @@ export function DataTable<T extends { id?: string | number }>({
                     <div key={c.key} className="min-w-0">
                       <dt className="text-[10px] font-bold tracking-wide text-[#888] uppercase">{c.label}</dt>
                       <dd className="truncate text-[#333]">
-                        {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—")}
+                        {c.render ? c.render(row) : formatCell((row as Record<string, unknown>)[c.key])}
                       </dd>
                     </div>
                   ))}
@@ -292,7 +293,7 @@ export function DataTable<T extends { id?: string | number }>({
                     <td className="px-3 py-2 tabular-nums text-[#888]">{start + i + 1}</td>
                     {visibleColumns.map((c) => (
                       <td key={c.key} className="px-3 py-2">
-                        {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—")}
+                        {c.render ? c.render(row) : formatCell((row as Record<string, unknown>)[c.key])}
                       </td>
                     ))}
                   </tr>

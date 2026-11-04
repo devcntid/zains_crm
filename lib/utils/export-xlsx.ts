@@ -1,3 +1,5 @@
+import { fmtDate, looksLikeDate } from "@/lib/utils/format";
+
 export type ExportColumn<T> = {
   key: string;
   label: string;
@@ -14,7 +16,7 @@ export function cellExportValue<T>(column: ExportColumn<T>, row: T): string | nu
   if (raw == null) return "";
   if (typeof raw === "number" || typeof raw === "bigint") return Number(raw);
   if (typeof raw === "boolean") return raw ? "Ya" : "Tidak";
-  if (raw instanceof Date) return raw.toISOString();
+  if (looksLikeDate(raw)) return fmtDate(raw);
   if (typeof raw === "object") return JSON.stringify(raw);
   return String(raw);
 }

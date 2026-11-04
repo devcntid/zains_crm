@@ -112,6 +112,46 @@ export async function listUsers() {
   );
 }
 
+export async function createUser(input: {
+  nama: string;
+  email: string;
+  passwordHash: string;
+  role: string;
+  isActive?: boolean;
+}) {
+  const sql = getDb();
+  const rows = await sql`
+    INSERT INTO users (nama, email, password_hash, role, is_active)
+    VALUES (${input.nama}, ${input.email}, ${input.passwordHash}, ${input.role}, ${input.isActive ?? true})
+    RETURNING id, nama, email, role, is_active, last_login_at, created_at
+  `;
+  return jsonSafe(rows[0]);
+}
+
+export async function updateUser(
+  id: string,
+  input: { nama?: string; email?: string; passwordHash?: string; role?: string; isActive?: boolean },
+) {
+  const sql = getDb();
+  const rows = await sql`
+    UPDATE users SET
+      nama = COALESCE(${input.nama ?? null}, nama),
+      email = COALESCE(${input.email ?? null}, email),
+      password_hash = COALESCE(${input.passwordHash ?? null}, password_hash),
+      role = COALESCE(${input.role ?? null}, role),
+      is_active = COALESCE(${input.isActive ?? null}, is_active),
+      updated_at = now()
+    WHERE id = ${id}::bigint AND deleted_at IS NULL
+    RETURNING id, nama, email, role, is_active, last_login_at, created_at
+  `;
+  return jsonSafe(rows[0] ?? null);
+}
+
+export async function softDeleteUser(id: string) {
+  const sql = getDb();
+  await sql`UPDATE users SET deleted_at = now(), is_active = FALSE, updated_at = now() WHERE id = ${id}::bigint`;
+}
+
 export async function listFieldDefinitions() {
   const sql = getDb();
   return jsonSafe(await sql`SELECT * FROM field_definitions ORDER BY sort_order, label`);

@@ -42,7 +42,7 @@ const CAMPAIGNS = [
 ];
 
 const USERS_DATA = [
-  { id: 1, nama: "Admin Sistem", email: "admin@rn.org", role: "admin", is_active: true },
+  { id: 1, nama: "Admin Sistem", email: "dev@cnt.id", role: "admin", is_active: true },
   { id: 2, nama: "Regi Fajar R.", email: "regi@cnt.id", role: "supervisor", is_active: true },
   { id: 3, nama: "Rizky Bachtiar", email: "rizky@cnt.id", role: "supervisor", is_active: true },
   { id: 4, nama: "Sari Rahmawati", email: "sari@rn.org", role: "data_analyst", is_active: true },
