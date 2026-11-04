@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
   },
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon" }];
+  },
   turbopack: {
     rules: {
       "*.css": {

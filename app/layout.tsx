@@ -4,6 +4,8 @@ import { Toaster } from "sonner";
 import { getOrgProfile } from "@/lib/db/queries/org-profile";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
   variable: "--font-source-sans",
@@ -12,13 +14,17 @@ const sourceSans = Source_Sans_3({
 
 export async function generateMetadata(): Promise<Metadata> {
   const org = await getOrgProfile();
-  const icon = org.favicon_url || org.logo_url || "/icon";
+  const v = encodeURIComponent(String(org.updated_at ?? Date.now()));
+  const icon = `/icon?v=${v}`;
   return {
     title: org.nama,
     description: org.tagline || org.nama,
     icons: {
-      icon: [{ url: icon }],
-      apple: [{ url: icon }],
+      icon: [
+        { url: icon, type: "image/png", sizes: "32x32" },
+        { url: `/favicon.ico?v=${v}`, sizes: "32x32" },
+      ],
+      apple: [{ url: `/apple-icon?v=${v}`, sizes: "180x180" }],
       shortcut: icon,
     },
   };
