@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FaviconCropper } from "@/components/forms/favicon-cropper";
 import type { OrgProfile } from "@/lib/db/queries/org-profile";
 
 export function OrgSettingsForm({ org }: { org: OrgProfile }) {
@@ -18,6 +19,8 @@ export function OrgSettingsForm({ org }: { org: OrgProfile }) {
     accentColor: org.accent_color,
   });
   const [saving, setSaving] = useState(false);
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropBusy, setCropBusy] = useState(false);
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -60,6 +63,7 @@ export function OrgSettingsForm({ org }: { org: OrgProfile }) {
           kind="logo"
           url={form.logoUrl}
           onUrl={(v) => set("logoUrl", v)}
+          onUploaded={() => setCropOpen(true)}
         />
         <AssetField
           label="Favicon"
@@ -67,8 +71,41 @@ export function OrgSettingsForm({ org }: { org: OrgProfile }) {
           url={form.faviconUrl}
           fallbackUrl={form.logoUrl}
           onUrl={(v) => set("faviconUrl", v)}
-          hint="Kosong = pakai logo. PNG/ICO/SVG, maks 512 KB."
+          hint="Kosong = pakai logo. Atau crop dari logo utama."
         />
+        {form.logoUrl && (
+          <button
+            type="button"
+            className="mb-4 rounded-xl bg-[#e8e8e8] px-3 py-2 text-[12px] font-semibold"
+            onClick={() => setCropOpen(true)}
+          >
+            Crop logo jadi favicon
+          </button>
+        )}
+        {cropOpen && form.logoUrl && (
+          <FaviconCropper
+            imageSrc={`/api/org-profile/assets/source?kind=logo&t=${encodeURIComponent(form.logoUrl)}`}
+            busy={cropBusy}
+            onCancel={() => setCropOpen(false)}
+            onConfirm={async (file) => {
+              setCropBusy(true);
+              const body = new FormData();
+              body.set("kind", "favicon");
+              body.set("file", file);
+              const res = await fetch("/api/org-profile/assets", { method: "POST", body });
+              const json = await res.json();
+              setCropBusy(false);
+              if (!res.ok) {
+                toast.error(json.error || "Gagal menyimpan favicon");
+                return;
+              }
+              set("faviconUrl", json.url);
+              setCropOpen(false);
+              toast.success("Favicon dari crop logo tersimpan");
+              router.refresh();
+            }}
+          />
+        )}
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <ColorField label="Utama" value={form.primaryColor} onChange={(v) => set("primaryColor", v)} />
           <ColorField label="Sidebar" value={form.sidebarColor} onChange={(v) => set("sidebarColor", v)} />
@@ -115,6 +152,7 @@ function AssetField({
   fallbackUrl,
   onUrl,
   hint,
+  onUploaded,
 }: {
   label: string;
   kind: "logo" | "favicon";
@@ -122,7 +160,9 @@ function AssetField({
   fallbackUrl?: string;
   onUrl: (v: string) => void;
   hint?: string;
+  onUploaded?: () => void;
 }) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const preview = url || fallbackUrl || "";
 
@@ -140,6 +180,8 @@ function AssetField({
     }
     onUrl(json.url);
     toast.success(kind === "logo" ? "Logo terunggah" : "Favicon terunggah");
+    router.refresh();
+    if (kind === "logo") onUploaded?.();
   }
 
   return (

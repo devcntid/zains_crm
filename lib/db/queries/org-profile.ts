@@ -13,6 +13,7 @@ export type OrgProfile = {
   sidebar_color: string;
   accent_color: string;
   is_seed_default: boolean;
+  updated_at?: string;
 };
 
 export function fallbackOrg(): OrgProfile {
@@ -78,5 +79,24 @@ export async function updateOrgProfile(input: {
     VALUES ('app_name', ${input.nama}, 'Nama aplikasi')
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
   `;
+  return jsonSafe(rows[0]) as OrgProfile;
+}
+
+export async function setOrgAssetUrl(kind: "logo" | "favicon", url: string) {
+  const sql = getDb();
+  const rows =
+    kind === "logo"
+      ? await sql`
+          UPDATE org_profile
+          SET logo_url = ${url}, is_seed_default = FALSE, updated_at = now()
+          WHERE id = 1
+          RETURNING *
+        `
+      : await sql`
+          UPDATE org_profile
+          SET favicon_url = ${url}, is_seed_default = FALSE, updated_at = now()
+          WHERE id = 1
+          RETURNING *
+        `;
   return jsonSafe(rows[0]) as OrgProfile;
 }

@@ -2,6 +2,8 @@ import { AppShell } from "@/components/layout/sidebar";
 import { getServerSession } from "@/lib/auth/session";
 import { getOrgProfile } from "@/lib/db/queries/org-profile";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   const org = await getOrgProfile();

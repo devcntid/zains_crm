@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
 import { uploadOrgAsset } from "@/lib/blob/org-assets";
 import { logAudit } from "@/lib/db/queries/audit-logs";
+import { setOrgAssetUrl } from "@/lib/db/queries/org-profile";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   }
   try {
     const url = await uploadOrgAsset(kind, file);
+    await setOrgAssetUrl(kind, url);
     await logAudit({
       userId: g.session!.user.id,
       action: "update",

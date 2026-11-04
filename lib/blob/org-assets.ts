@@ -33,8 +33,13 @@ export async function uploadOrgAsset(kind: "logo" | "favicon", file: File) {
     throw new Error(kind === "logo" ? "Logo maksimal 2 MB." : "Favicon maksimal 512 KB.");
   }
   const pathname = `org/${kind}.${extOf(file)}`;
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    throw new Error("BLOB_READ_WRITE_TOKEN belum di-set. Jalankan vercel env pull atau isi token Blob di .env.local.");
+  }
   const blob = await put(pathname, file, {
     access: "public",
+    token,
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: file.type || undefined,

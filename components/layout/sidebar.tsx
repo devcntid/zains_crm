@@ -59,6 +59,13 @@ export function AppShell({
   const [drawer, setDrawer] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [logoOk, setLogoOk] = useState(true);
+  const logoSrc = org.logo_url
+    ? `${org.logo_url}${org.logo_url.includes("?") ? "&" : "?"}v=${encodeURIComponent(String(org.updated_at ?? "1"))}`
+    : "";
+
+  useEffect(() => {
+    setLogoOk(true);
+  }, [org.logo_url, org.updated_at]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
@@ -105,14 +112,12 @@ export function AppShell({
       >
         <div className="flex items-start justify-between gap-2 border-b border-white/15 px-3 py-3">
           <div className="min-w-0">
-            {org.logo_url && logoOk ? (
+            {logoSrc && logoOk ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={org.logo_url}
+                src={logoSrc}
                 alt={org.nama_singkat}
-                referrerPolicy="no-referrer"
-                crossOrigin="anonymous"
-                className="h-7 max-w-[148px] object-contain"
+                className="h-8 max-w-[160px] object-contain"
                 onError={() => setLogoOk(false)}
               />
             ) : (
