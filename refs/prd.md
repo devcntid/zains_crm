@@ -1,9 +1,9 @@
 # Product Requirements Document
 # CRM Relawan Nusantara
 
-**Versi:** 2.0  
-**Tanggal:** April 2026  
-**Status:** Draft — Internal CNT  
+**Versi:** 2.1  
+**Tanggal:** 4 November 2026  
+**Status:** Draft — Internal CNT · diselaraskan dengan implementasi Fase 1  
 **Dibuat oleh:** Tim CNT  
 **Untuk:** Relawan Nusantara (RN)
 
@@ -200,6 +200,25 @@ Setiap donatur memiliki satu halaman profil yang menjadi pusat semua informasi.
 - Field dari ZAINS/CF (nama, No. HP, nominal): read-only, update via Service API
 - Field CRM (catatan prospek, status follow-up, tag, dynamic fields): editable sesuai role
 - Semua perubahan tercatat di audit trail
+- Field dinamis yang `visible_in` mencakup **list** tampil sebagai kolom di daftar donatur (bisa show/hide); yang **export** ikut file Excel meski kolom disembunyikan
+- Profil donatur: edit identitas CRM (nama, email, status) + form field dinamis + chip label
+
+### 5.1.1 Standar tabel (semua halaman list)
+
+Setiap `DataTable`:
+
+- Pencarian in-table, pagination, pilih kolom (show/hide)
+- Tombol **Excel** — kolom file = kolom yang terlihat (+ field yang ditandai export); termasuk kolom No
+- Tanggal/waktu ditampilkan humanize zona **WIB (Asia/Jakarta)** lengkap sampai **jam:menit:detik**, contoh `10 Apr 2026, 07.00.00 WIB` (berlaku juga di Excel)
+- Boolean tampil Ya/Tidak
+
+### 5.1.2 Identitas lembaga
+
+Singleton `org_profile`: nama, nama singkat, tagline, warna primary/sidebar/accent, logo dan favicon (Vercel Blob). Favicon browser = favicon lembaga atau crop dari logo — bukan favicon default Next.js. Sidebar memakai logo + warna lembaga.
+
+### 5.1.3 Pengguna (CRUD)
+
+Menu **Konfigurasi → Pengguna**: tambah / edit (nama, email, role, aktif, ganti password opsional) / soft-delete. Email unik. Tidak boleh menghapus akun sendiri. Role: `admin | supervisor | data_analyst | tim_blast | read_only`.
 
 ### 5.2 Import Laporan Blast
 
@@ -333,6 +352,18 @@ Lapisan 2 — Materialized Search Index (cepat, untuk query)
 • status_kontak         • segmen_rfm           • skor_r, skor_f, skor_m
 • tags[]                • linked_zains_ids[]
 ```
+
+`tags[]` menyimpan **slug** label (bukan teks bebas acak di UI). Katalog label terpisah — lihat §6.6. Field dinamis **bukan** pengganti tag: satu field `multiselect` tidak cukup untuk label tak terbatas yang mudah dilepas satu-satu.
+
+### 6.6 Label Donatur (Tags) — Terpisah dari Dynamic Fields
+
+Admin mengelola katalog di menu **Konfigurasi → Label donatur** (`tag_definitions`): nama tampilan, warna chip, aktif/nonaktif. Slug immutable.
+
+Per donatur: banyak label sekaligus (chip). Tambah dari katalog atau ketik label baru (upsert katalog + `array_append`). Hapus per chip. Nilai di `donors.tags TEXT[]`; search index `search_doc.tags`; filter GIN (`@>` / `&&`).
+
+**Filter multi-label (Query Builder):** satu kondisi Label, centang banyak slug, operator **berisi semua** (`tags @> ARRAY[...]`) atau **berisi salah satu** (`tags && ARRAY[...]`). Bisa dikombinasi AND/OR dengan RFM, status, dan field dinamis.
+
+**Daftar & export:** kolom Label di tabel donatur (chip, show/hide). Excel mengekspor nama tampilan, dipisah koma — sama dengan yang terlihat di tabel.
 
 ### 6.5 Contoh Field Dinamis yang Mungkin Ditambahkan RN
 
@@ -778,7 +809,7 @@ Donor
 ├── status_kontak             aktif | tidak_aktif | mati | diblokir | opt_out
 ├── segmen_rfm                champions | loyal | potential | at_risk | lost | new | one_time
 ├── skor_r, skor_f, skor_m   Integer 1–5
-├── tags[]                    String array
+├── tags[]                    TEXT[] — slug label dari TagDefinition (multi)
 ├── assigned_to               FK → User (nullable)
 ├── follow_up_status          null | in_progress | waiting_callback | closing | failed | escalate
 ├── follow_up_due_date        Date (nullable)
@@ -814,7 +845,22 @@ FieldDefinition (definisi field dinamis)
 DonorDynamicField (nilai field dinamis per donatur)
 ├── donor_id                  FK → Donor
 ├── field_def_id              FK → FieldDefinition
-├── value                     jsonb
+├── value_text | value_number | value_date | value_boolean | value_json
+└── updated_at
+
+TagDefinition (katalog label — terpisah dari FieldDefinition)
+├── id
+├── slug                      immutable, unique — nilai yang disimpan di donors.tags
+├── nama                      tampilan UI / Excel
+├── warna                     hex chip
+├── deskripsi
+├── is_active
+└── created_at, updated_at
+
+OrgProfile (singleton identitas lembaga)
+├── nama, nama_singkat, tagline
+├── logo_url, favicon_url     Vercel Blob
+├── primary_color, sidebar_color, accent_color
 └── updated_at
 
 DonorSearchIndex (materialized, rebuilt on change)
@@ -903,9 +949,11 @@ User
 ├── id_user
 ├── nama
 ├── email
+├── password_hash
 ├── role                      admin | supervisor | data_analyst | tim_blast | read_only
 ├── is_active
-└── created_at
+├── last_login_at
+├── created_at, updated_at, deleted_at
 
 AuditLog
 ├── id_log
@@ -933,6 +981,11 @@ AuditLog
 | US-ADM-02 | Sebagai Admin, saya ingin mengkonfigurasi mapping kolom untuk file laporan blast vendor baru, agar import laporan tidak error meski format berbeda dari sebelumnya. | Mapping tersimpan; import file vendor baru berhasil dengan klasifikasi yang benar. |
 | US-ADM-03 | Sebagai Admin, saya ingin melihat audit trail siapa yang mengubah status donatur tertentu, agar bisa investigasi jika ada data yang berubah tidak seharusnya. | Audit log menampilkan: user, waktu, field, nilai lama dan baru. |
 | US-ADM-04 | Sebagai Admin, saya ingin men-deaktivasi field dinamis yang sudah tidak dipakai tanpa menghapus datanya, agar tidak membingungkan user tapi data historis tetap tersimpan. | Field tidak muncul di UI setelah dinonaktifkan; data di DB tetap ada dan bisa diaktifkan kembali. |
+| US-ADM-05 | Sebagai Admin, saya ingin menambah/ubah/nonaktifkan field dinamis dari menu Field dinamis, dan field itu langsung muncul sebagai kolom donatur (bisa disembunyikan) serta ikut export Excel. | CRUD tanpa deploy; kolom list mengikuti `visible_in`; Excel memakai nilai tampilan (bukan raw ISO). |
+| US-ADM-06 | Sebagai Admin, saya ingin katalog label donatur (nama, warna) dan menempel banyak label ke satu donatur, plus hapus per chip. | Katalog `tag_definitions`; `donors.tags[]` multi-slug; ketik label baru langsung masuk katalog. |
+| US-ADM-07 | Sebagai Admin, saya ingin filter donatur berdasarkan beberapa label sekaligus (semua / salah satu) digabung kondisi lain. | Query Builder: multi-select label + AND/OR antar kondisi; hasil bisa di-Excel. |
+| US-ADM-08 | Sebagai Admin, saya ingin CRUD pengguna (nama, email, role, password, aktif) dari menu Pengguna. | Tambah/edit/soft-delete; email unik; tidak bisa hapus diri sendiri. |
+| US-ADM-09 | Sebagai Admin, saya ingin identitas lembaga (logo, favicon, warna, nama) tampil di sidebar dan tab browser. | `org_profile` + Blob; favicon bukan default Next.js. |
 
 ### 12.2 Supervisor / Data Analyst Senior
 
@@ -952,6 +1005,7 @@ AuditLog
 | US-DA-03 | Sebagai Data Analyst, saya ingin membuat daftar donatur yang berdonasi Ramadan 2025 tapi belum donasi apapun sejak April 2025, untuk campaign re-engagement. | Query multi-kondisi temporal berjalan < 3 detik; hasil akurat; bisa diexport ke CSV. |
 | US-DA-04 | Sebagai Data Analyst, saya ingin melihat skor RFM tiap donatur terupdate otomatis setelah import data baru, tanpa harus trigger manual. | RFM terupdate dalam < 5 menit setelah import selesai. |
 | US-DA-05 | Sebagai Data Analyst, saya ingin mencari donatur berdasarkan kombinasi: wilayah = Jabodetabek, segmen = At Risk, terakhir diblast > 14 hari, dalam satu query, agar langsung bisa generate daftar prospek. | Semua kondisi bisa dikombinasikan di Query Builder; hasil muncul < 3 detik. |
+| US-DA-06 | Sebagai Data Analyst, saya ingin mengekspor tabel yang sedang saya lihat (kolom + filter + urutan yang sama) ke Excel dari tombol di tabel. | File .xlsx; tanggal WIB; label pakai nama tampilan. |
 
 ### 12.4 Tim Blast / PIC
 
@@ -998,6 +1052,8 @@ AuditLog
 | NFR-11 | Field baru yang `is_searchable = true` langsung tersedia di Query Builder |
 | NFR-12 | Field dapat di-deaktivasi tanpa menghapus data yang sudah ada |
 | NFR-13 | Tidak ada batas jumlah field dinamis (dalam reason — max 200 field aktif) |
+| NFR-13a | Label donatur tidak terbatas per donatur; katalog bisa ditambah tanpa deploy |
+| NFR-13b | Semua timestamp di UI/Excel: zona Asia/Jakarta, format `d MMM yyyy, HH.mm.ss WIB` |
 
 ### 13.3 Keamanan & Integritas
 
@@ -1042,20 +1098,26 @@ AuditLog
 
 ### Fase 1 — Core CRM Standalone (M1–M3)
 
-**Sistem berjalan Mode A — tidak bergantung ZAINS/CF. Semua data via upload.**
+**Sistem berjalan Mode A — tidak bergantung ZAINS/CF. Semua data via upload.**  
+*Status Nov 2026: superadmin tanpa login (session admin seed). Auth next-auth menyusul.*
 
-- [ ] Setup DB CRM + DB Operasional + Donor Search Index
-- [ ] Dynamic Fields — admin bisa tambah field kapan saja
-- [ ] Upload & Ingest CSV/Excel (donatur + transaksi) dengan normalisasi + deduplikasi
-- [ ] Profil Donatur Terpadu (semua tab)
-- [ ] Advanced Query Engine + Query Builder UI
-- [ ] Segmen Tersimpan
-- [ ] Kalkulasi RFM otomatis
-- [ ] Generator Daftar Target Blast (export CSV)
-- [ ] Import Laporan Blast + Klasifikasi + VendorProfile
-- [ ] Multi-Tim: Assignment, Worklist PIC, Workload Dashboard
-- [ ] RBAC 5 role
-- [ ] Audit Trail
+- [x] Setup DB CRM + Donor Search Index (Neon, raw SQL, migrasi + seed)
+- [x] Dynamic Fields — CRUD admin; nilai per donatur; kolom list show/hide + Excel
+- [x] Label donatur — katalog `tag_definitions`, multi-chip, filter berisi semua/salah satu, Excel nama tampilan
+- [x] Identitas lembaga — `org_profile`, logo/favicon Blob, sidebar + favicon browser
+- [x] Standar DataTable — cari, paging, kolom, Excel, tanggal WIB
+- [x] Profil Donatur — identitas, field dinamis, label, transaksi, prospect notes
+- [x] Query Builder UI — multi-kondisi AND/OR termasuk field dinamis + label
+- [x] Segmen Tersimpan (simpan query)
+- [x] Kalkulasi RFM
+- [x] CRUD Pengguna (5 role)
+- [x] Worklist PIC + dashboard ringkas
+- [x] Audit Trail (mutasi API)
+- [ ] Upload & Ingest CSV/Excel (donatur + transaksi) penuh: preview + dedup + apply atomic
+- [ ] Generator Daftar Target Blast (export CSV vendor) streaming 50k
+- [ ] Import Laporan Blast + klasifikasi penuh per VendorProfile
+- [ ] Auto-distribute merata ke banyak PIC
+- [ ] Login next-auth (saat ini Fase 1 superadmin tanpa login)
 
 ### Fase 2 — Integration Layer (M3–M6, setelah Fase 0 selesai)
 
@@ -1110,6 +1172,7 @@ AuditLog
 |---|---|---|
 | 1.0 | April 2026 | Draft pertama |
 | 2.0 | April 2026 | Tambah: User Stories Tim CRM, Dynamic Fields (§6), Advanced Query Engine (§7), Multi-Tim (§8), web.whatsapp Extension detail (§9), update data model, update NFR & roadmap |
+| 2.1 | 4 Nov 2026 | Selaraskan implementasi Fase 1: katalog label (§6.6) terpisah dari field dinamis; DataTable Excel + tanggal WIB; CRUD pengguna; org_profile/favicon; field dinamis di list/export/filter; status roadmap |
 
 ---
 
