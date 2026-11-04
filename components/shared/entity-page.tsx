@@ -16,7 +16,7 @@ export function EntityPage<T extends { id?: string | number }>({
       <h1 className="mb-3 mt-0 text-[18px] font-bold text-[var(--primary)] md:text-[20px]">
         {title} ({rows.length})
       </h1>
-      <DataTable data={rows} columns={columns} />
+      <DataTable data={rows} columns={columns} exportFilename={title} />
     </div>
   );
 }

@@ -38,11 +38,12 @@ export function QueryBuilderPanel() {
           <div className="mb-1 text-[12px] text-[#666]">Hasil query: {rows.length}</div>
           <DataTable
             data={rows}
+            exportFilename="hasil-query"
             onRow={(r) => router.push(`/donors/${r.id}`)}
             columns={[
               { key: "nama_lengkap", label: "Nama" },
               { key: "no_hp_canonical", label: "HP" },
-              { key: "segmen_rfm", label: "Segmen" },
+              { key: "segmen_rfm", label: "Segmen", exportValue: (d) => d.segmen_rfm || "" },
             ]}
           />
         </div>
@@ -56,6 +57,7 @@ export function DonorsTable({ rows }: { rows: Row[] }) {
   return (
     <DataTable
       data={rows}
+      exportFilename="donatur"
       onRow={(r) => router.push(`/donors/${r.id}`)}
       columns={[
         { key: "nama_lengkap", label: "Nama", render: (d) => <strong>{d.nama_lengkap}</strong> },
@@ -65,9 +67,20 @@ export function DonorsTable({ rows }: { rows: Row[] }) {
           key: "segmen_rfm",
           label: "Segmen",
           render: (d) => (d.segmen_rfm ? <Badge color={SC[d.segmen_rfm] || "#999"}>{d.segmen_rfm}</Badge> : "—"),
+          exportValue: (d) => d.segmen_rfm || "—",
         },
-        { key: "total_donation_lifetime", label: "Total", render: (d) => fmtRp(toNum(d.total_donation_lifetime)) },
-        { key: "assigned_nama", label: "PIC", render: (d) => d.assigned_nama || "—" },
+        {
+          key: "total_donation_lifetime",
+          label: "Total",
+          render: (d) => fmtRp(toNum(d.total_donation_lifetime)),
+          exportValue: (d) => fmtRp(toNum(d.total_donation_lifetime)),
+        },
+        {
+          key: "assigned_nama",
+          label: "PIC",
+          render: (d) => d.assigned_nama || "—",
+          exportValue: (d) => d.assigned_nama || "—",
+        },
       ]}
     />
   );

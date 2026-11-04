@@ -1,13 +1,15 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SearchSelect } from "@/components/shared/search-select";
+import { downloadXlsx } from "@/lib/utils/export-xlsx";
 
 export type Column<T> = {
   key: string;
   label: string;
   render?: (row: T) => React.ReactNode;
+  exportValue?: (row: T) => string | number | null | undefined;
   className?: string;
 };
 
@@ -18,11 +20,13 @@ export function DataTable<T extends { id?: string | number }>({
   data,
   onRow,
   selectable,
+  exportFilename = "data",
 }: {
   columns: Column<T>[];
   data: T[];
   onRow?: (row: T) => void;
   selectable?: boolean;
+  exportFilename?: string;
 }) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [dir, setDir] = useState<"asc" | "desc">("asc");
@@ -67,6 +71,15 @@ export function DataTable<T extends { id?: string | number }>({
     setPage(Math.max(1, Math.min(pageCount, p)));
   }
 
+  async function exportExcel() {
+    await downloadXlsx({
+      filename: exportFilename,
+      sheetName: exportFilename,
+      columns,
+      rows: sorted,
+    });
+  }
+
   const searchBar = (
     <div className="flex items-center gap-2 border-b border-[#eee] px-3 py-2">
       <Search size={16} className="shrink-0 text-[#888]" />
@@ -79,6 +92,15 @@ export function DataTable<T extends { id?: string | number }>({
           setPage(1);
         }}
       />
+      <button
+        type="button"
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-[#ddd] bg-white px-2.5 text-[12px] font-semibold text-[#333] disabled:opacity-40"
+        disabled={sorted.length === 0}
+        onClick={() => void exportExcel()}
+      >
+        <Download size={14} />
+        Excel
+      </button>
     </div>
   );
 

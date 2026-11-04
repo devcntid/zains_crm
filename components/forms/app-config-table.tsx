@@ -19,6 +19,7 @@ export function AppConfigTable({ rows }: { rows: Row[] }) {
       </h2>
       <DataTable
         data={rows.map((r) => ({ ...r, id: r.key }))}
+        exportFilename="app-config"
         columns={[
           { key: "key", label: "Key" },
           {
