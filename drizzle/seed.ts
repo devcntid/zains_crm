@@ -5,12 +5,13 @@ import { neon } from "@neondatabase/serverless";
 config({ path: ".env.local" });
 config();
 
-type Sql = ReturnType<typeof neon>;
+type Row = Record<string, unknown>;
+type Sql = {
+  query: (query: string, params?: unknown[]) => Promise<Row[]>;
+};
 
-async function idBy<T extends { id: string | number | bigint }>(
-  rows: T[],
-): Promise<string> {
-  return String(rows[0]?.id);
+function rowsOf(res: unknown): Row[] {
+  return res as Row[];
 }
 
 async function seedBaseline(sql: Sql) {
@@ -138,13 +139,12 @@ async function seedSample(sql: Sql) {
     );
   }
 
-  const admin = await sql.query(`SELECT id FROM users WHERE email = (SELECT value FROM app_config WHERE key = 'app_name')`);
-  const adminRows = await sql.query(
-    `SELECT id FROM users WHERE role = 'admin' AND deleted_at IS NULL ORDER BY id LIMIT 1`,
+  const adminRows = rowsOf(
+    await sql.query(`SELECT id FROM users WHERE role = 'admin' AND deleted_at IS NULL ORDER BY id LIMIT 1`),
   );
   const adminId = String(adminRows[0].id);
   const userId = async (email: string) =>
-    String((await sql.query(`SELECT id FROM users WHERE email = $1`, [email]))[0].id);
+    String(rowsOf(await sql.query(`SELECT id FROM users WHERE email = $1`, [email]))[0].id);
 
   const programs = [
     ["ramadan", "Ramadan", "seasonal", 1],
@@ -167,7 +167,7 @@ async function seedSample(sql: Sql) {
     );
   }
   const programId = async (slug: string) =>
-    String((await sql.query(`SELECT id FROM programs WHERE slug = $1`, [slug]))[0].id);
+    String(rowsOf(await sql.query(`SELECT id FROM programs WHERE slug = $1`, [slug]))[0].id);
 
   const campaigns: [string, string, string | null, string, string | null, string | null][] = [
     ["ramadan_2023", "Ramadan 2023", "ramadan", "seasonal", "2023-03-01", "2023-04-30"],
@@ -192,7 +192,7 @@ async function seedSample(sql: Sql) {
     );
   }
   const campaignId = async (slug: string) =>
-    String((await sql.query(`SELECT id FROM campaigns WHERE slug = $1`, [slug]))[0].id);
+    String(rowsOf(await sql.query(`SELECT id FROM campaigns WHERE slug = $1`, [slug]))[0].id);
 
   const fields = [
     ["wilayah_donatur", "Wilayah", "dropdown", ["Jabodetabek", "Jawa Barat", "Jawa Tengah", "Jawa Timur", "Sumatera", "Lainnya"]],
@@ -318,7 +318,7 @@ async function seedSample(sql: Sql) {
     );
   }
   const donorId = async (hp: string) =>
-    String((await sql.query(`SELECT id FROM donors WHERE no_hp_canonical = $1`, [hp]))[0].id);
+    String(rowsOf(await sql.query(`SELECT id FROM donors WHERE no_hp_canonical = $1`, [hp]))[0].id);
 
   const trx: [string, string, string | null, string, number, string, string][] = [
     ["6281234567890", "ramadan", "ramadan_2023", "2023-03-25", 300000, "paid", "SEED-TRX-001"],
@@ -350,10 +350,10 @@ async function seedSample(sql: Sql) {
   }
 
   const wilayahId = String(
-    (await sql.query(`SELECT id FROM field_definitions WHERE slug = 'wilayah_donatur'`))[0].id,
+    rowsOf(await sql.query(`SELECT id FROM field_definitions WHERE slug = 'wilayah_donatur'`))[0].id,
   );
   const tetapId = String(
-    (await sql.query(`SELECT id FROM field_definitions WHERE slug = 'donatur_tetap'`))[0].id,
+    rowsOf(await sql.query(`SELECT id FROM field_definitions WHERE slug = 'donatur_tetap'`))[0].id,
   );
   const d1 = await donorId("6281234567890");
   await sql.query(
@@ -370,24 +370,25 @@ async function seedSample(sql: Sql) {
   );
 
   const wappinId = String(
-    (await sql.query(`SELECT id FROM vendor_profiles WHERE nama_vendor = 'Wappin v2'`))[0].id,
+    rowsOf(await sql.query(`SELECT id FROM vendor_profiles WHERE nama_vendor = 'Wappin v2'`))[0].id,
   );
   const ramadan2025 = await campaignId("ramadan_2025");
-  const existingBatch = await sql.query(
-    `SELECT id FROM blast_batches WHERE campaign_id = $1 AND tgl_blast = '2025-03-01'`,
-    [ramadan2025],
+  const existingBatch = rowsOf(
+    await sql.query(`SELECT id FROM blast_batches WHERE campaign_id = $1 AND tgl_blast = '2025-03-01'`, [ramadan2025]),
   );
   let batchId: string;
   if (existingBatch.length) {
     batchId = String(existingBatch[0].id);
   } else {
-    const inserted = await sql.query(
-      `INSERT INTO blast_batches (
+    const inserted = rowsOf(
+      await sql.query(
+        `INSERT INTO blast_batches (
          campaign_id, vendor_profile_id, tgl_blast, jumlah_target, jumlah_terkirim,
          jumlah_gagal, jumlah_dibaca, jumlah_respon, jumlah_closing, import_status, diimport_oleh
        ) VALUES ($1, $2, '2025-03-01', 25, 22, 3, 10, 5, 2, 'done', $3)
        RETURNING id`,
-      [ramadan2025, wappinId, sari],
+        [ramadan2025, wappinId, sari],
+      ),
     );
     batchId = String(inserted[0].id);
   }
@@ -415,7 +416,7 @@ async function seedSample(sql: Sql) {
     [regi],
   );
   const segId = String(
-    (await sql.query(`SELECT id FROM saved_segments WHERE nama = 'At Risk High Value'`))[0].id,
+    rowsOf(await sql.query(`SELECT id FROM saved_segments WHERE nama = 'At Risk High Value'`))[0].id,
   );
   const atRiskHp = ["6286655443322", "6289988776655", "6281098765432", "6281357924680"];
   for (const hp of atRiskHp) {
@@ -451,7 +452,7 @@ async function seedSample(sql: Sql) {
     [sari],
   );
 
-  const donorRows = await sql.query(`SELECT id FROM donors WHERE deleted_at IS NULL`);
+  const donorRows = rowsOf(await sql.query(`SELECT id FROM donors WHERE deleted_at IS NULL`));
   for (const row of donorRows) {
     await sql.query(`SELECT fn_rebuild_search_index($1::bigint)`, [String(row.id)]);
   }
@@ -464,14 +465,13 @@ async function seedSample(sql: Sql) {
     [adminId],
   );
 
-  void admin;
   console.log("Sample seed OK:", donorRows.length, "donors");
 }
 
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
-  const sql = neon(url);
+  const sql = neon(url) as unknown as Sql;
   await seedBaseline(sql);
   if (process.env.SEED_SAMPLE === "true") {
     await seedSample(sql);

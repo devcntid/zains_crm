@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   bigserial,
@@ -104,7 +105,7 @@ export const donors = pgTable(
     lastDonationAt: date("last_donation_at"),
     lastDonationNominal: bigint("last_donation_nominal", { mode: "bigint" }),
     lastDonationProgramId: bigint("last_donation_program_id", { mode: "bigint" }),
-    totalDonationLifetime: bigint("total_donation_lifetime", { mode: "bigint" }).notNull().default(0),
+    totalDonationLifetime: bigint("total_donation_lifetime", { mode: "bigint" }).notNull().default(sql`0`),
     totalDonationCount: integer("total_donation_count").notNull().default(0),
     lastSyncedAt: ts("last_synced_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
@@ -122,7 +123,7 @@ export const transactions = pgTable("transactions", {
   idTransaksiCf: varchar("id_transaksi_cf", { length: 100 }),
   tglTransaksi: date("tgl_transaksi").notNull(),
   bulanProgram: char("bulan_program", { length: 7 }).notNull(),
-  nominal: bigint("nominal", { mode: "bigint" }).notNull().default(0),
+  nominal: bigint("nominal", { mode: "bigint" }).notNull().default(sql`0`),
   status: varchar("status", { length: 30 }).notNull().default("paid"),
   sumber: varchar("sumber", { length: 30 }).notNull().default("upload"),
   catatan: text("catatan"),
