@@ -1,11 +1,14 @@
 import { Puzzle } from "lucide-react";
 import { Badge } from "@/components/shared/badge";
-import { listExtensionConfigs } from "@/lib/db/queries/catalog";
+import { GET as listExtensionConfigs } from "@/app/api/extension-configs/route";
+import { fromRoute, internalRequest } from "@/lib/api/from-route";
 
 export const metadata = { title: "Extensions — CRM RN", description: "Konfigurasi extension" };
 
 export default async function Page() {
-  const rows = (await listExtensionConfigs()) as Array<Record<string, unknown>>;
+  const { rows } = await fromRoute<{ rows: Array<Record<string, unknown>> }>(
+    await listExtensionConfigs(internalRequest("/api/extension-configs")),
+  );
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">

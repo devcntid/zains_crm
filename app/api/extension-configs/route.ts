@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
-import { getExtensionConfig, listExtensionConfigs } from "@/lib/db/queries/catalog";
 import { getDb } from "@/lib/db";
-import { logAudit } from "@/lib/db/queries/audit-logs";
+import { logAudit } from "@/lib/db/audit";
+import { jsonSafe } from "@/lib/utils/serialize";
 
 export async function GET(req: Request) {
   const g = await guard("extensions", "read");
   if (g.error) return g.error;
+  const sql = getDb();
   const type = new URL(req.url).searchParams.get("extType");
-  if (type) return NextResponse.json(await getExtensionConfig(type));
-  return NextResponse.json({ rows: await listExtensionConfigs() });
+  if (type) {
+    const rows = await sql`SELECT * FROM extension_configs WHERE ext_type = ${type}`;
+    return NextResponse.json(rows[0] ?? null);
+  }
+  return NextResponse.json({ rows: jsonSafe(await sql`SELECT * FROM extension_configs ORDER BY ext_type`) });
 }
 
 export async function PUT(req: Request) {

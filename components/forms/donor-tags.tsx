@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/shared/search-select";
+import { btnBlock, btnPrimary } from "@/components/ui/button";
 import { TagChips } from "@/components/shared/tag-chips";
 import type { TagCatalogItem } from "@/lib/org/field-value";
 
@@ -81,11 +82,7 @@ export function DonorTagsEditor({
             }
           }}
         />
-        <button
-          type="button"
-          className="rounded-xl bg-[var(--primary)] px-3.5 text-[12px] font-semibold text-white"
-          onClick={() => void add(custom)}
-        >
+        <button type="button" className={`${btnPrimary} ${btnBlock}`} onClick={() => void add(custom)}>
           Tambah
         </button>
       </div>

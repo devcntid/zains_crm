@@ -25,8 +25,9 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { NAV } from "@/lib/nav";
-import type { OrgProfile } from "@/lib/db/queries/org-profile";
+import type { OrgProfile } from "@/types/org";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
   "/dashboard": LayoutDashboard,
@@ -50,10 +51,12 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: n
 export function AppShell({
   children,
   userNama,
+  userEmail,
   org,
 }: {
   children: React.ReactNode;
   userNama: string;
+  userEmail: string;
   org: OrgProfile;
 }) {
   const pathname = usePathname();
@@ -99,7 +102,7 @@ export function AppShell({
         />
       )}
       <aside
-        className="z-50 flex h-full shrink-0 flex-col overflow-x-hidden overflow-y-auto text-white transition-transform duration-200 md:transition-[width]"
+        className="z-50 flex h-full shrink-0 flex-col overflow-hidden text-white transition-transform duration-200 md:transition-[width]"
         style={{
           background: org.sidebar_color,
           width,
@@ -144,7 +147,7 @@ export function AppShell({
             </button>
           )}
         </div>
-        <nav className="flex-1 py-1" aria-label="Menu utama">
+        <nav className="min-h-0 flex-1 overflow-y-auto py-1" aria-label="Menu utama">
           {NAV.map((g) => (
             <div key={g.group}>
               {showLabels && (
@@ -173,9 +176,14 @@ export function AppShell({
             </div>
           ))}
         </nav>
-        <div className="flex items-center gap-1.5 border-t border-white/12 px-3.5 py-3 text-[11px] opacity-60">
-          <Shield size={12} />
-          {showLabels && <span className="truncate">{userNama}</span>}
+        <div className="shrink-0 border-t border-white/15 px-3 py-3">
+          {showLabels && (
+            <div className="mb-2 min-w-0 px-1">
+              <div className="truncate text-[13px] font-semibold">{userNama}</div>
+              <div className="truncate text-[11px] text-white/70">{userEmail}</div>
+            </div>
+          )}
+          <LogoutButton tone="sidebar" showLabel={showLabels} />
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -189,10 +197,11 @@ export function AppShell({
               <Menu size={22} />
             </button>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-[13px] font-semibold text-[#333] md:text-[14px]">{org.nama}</div>
             <div className="hidden truncate text-[11px] text-[#888] sm:block">{org.tagline}</div>
           </div>
+          <LogoutButton className="md:hidden" />
         </header>
         <main className="min-h-0 flex-1 overflow-auto p-3 md:p-5">{children}</main>
       </div>

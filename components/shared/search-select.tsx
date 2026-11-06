@@ -119,7 +119,7 @@ export function SearchSelect({
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-10 w-full items-center gap-2 rounded-xl border border-[#ddd] bg-white px-3 text-left text-[13px] disabled:opacity-50"
       >
-        <span className={cn("min-w-0 flex-1 truncate", selected ? "text-[#1a1a1a]" : "text-[#999]")}>
+        <span className={cn("min-w-0 flex-1 truncate font-normal", selected ? "text-[#5c5c5c]" : "text-[#999]")}>
           {selected?.label ?? placeholder}
         </span>
         {allowClear && value ? (

@@ -139,27 +139,10 @@ crm-rn/
 │   └── globals.css
 ├── lib/
 │   ├── db/
-│   │   ├── index.ts                      # Neon DB connection pool
-│   │   ├── queries/                      # ALL raw SQL lives here
-│   │   │   ├── donors.ts
-│   │   │   ├── transactions.ts
-│   │   │   ├── programs.ts
-│   │   │   ├── campaigns.ts
-│   │   │   ├── segments.ts
-│   │   │   ├── blast.ts
-│   │   │   ├── prospect-notes.ts
-│   │   │   ├── search-index.ts
-│   │   │   ├── field-definitions.ts
-│   │   │   ├── dynamic-fields.ts
-│   │   │   ├── users.ts
-│   │   │   ├── audit-logs.ts
-│   │   │   ├── distribute.ts
-│   │   │   ├── rfm.ts
-│   │   │   ├── data-imports.ts
-│   │   │   ├── vendor-profiles.ts
-│   │   │   ├── app-config.ts
-│   │   │   └── extension-configs.ts
+│   │   ├── index.ts                      # Neon DB connection (getDb)
+│   │   ├── audit.ts                      # logAudit insert only — not a query pool
 │   │   └── migrations/                   # Drizzle-generated SQL migrations
+│   │                                     # Raw SQL lives in app/api/{model}/route.ts
 │   ├── auth/
 │   │   ├── index.ts                      # next-auth config
 │   │   ├── session.ts                    # getServerSession helper
@@ -256,22 +239,21 @@ crm-rn/
 **P1 — SSR First, No SPA**
 - Semua halaman menggunakan Server Components by default
 - Client Components (`"use client"`) HANYA untuk interaktivitas: form, query builder, charts, modals, drag-and-drop
-- Data fetching via `async` Server Components atau Server Actions — BUKAN `useEffect` + fetch di client
+- Data fetching via `async` Server Components yang memanggil handler route in-process — BUKAN `useEffect` + fetch di client, dan BUKAN `fetch` ke URL `/api` sendiri
 - `loading.tsx` untuk setiap route segment yang butuh streaming
 - SEO: setiap halaman punya `metadata` export dengan title + description
 
 **P2 — Raw SQL, No ORM**
-- Semua query SQL ditulis manual di `lib/db/queries/*.ts`
-- Setiap file export functions yang return typed results
+- Semua query SQL ditulis manual di `app/api/{model}/route.ts` (dan `[id]/route.ts` bila ada)
+- Tidak ada folder `lib/db/queries`. Satu-satunya SQL di luar route adalah `logAudit` di `lib/db/audit.ts`
 - Parameterized queries WAJIB — no string concatenation
 - Drizzle HANYA untuk: `drizzle-kit generate` (migration) dan `drizzle-kit migrate` (apply)
 - Drizzle schema (`drizzle/schema.ts`) hanya dipakai generate migration, NEVER import di app code
 
 **P3 — Separation of Concerns**
-- API routes (`app/api/`) → validation + auth check + call query function + return JSON
-- Query functions (`lib/db/queries/`) → raw SQL + return typed data
-- Components → render UI, call API via Server Actions or fetch
-- No raw SQL di components atau API routes — always via query functions
+- API routes (`app/api/`) → auth check + validasi Zod + raw SQL + JSON
+- Server Components → render UI, panggil handler route di proses yang sama (`fromRoute`). Jangan `fetch("/api/...")` ke origin sendiri: itu hop HTTP ekstra dan memperlambat SSR
+- No raw SQL di components atau halaman
 
 **P4 — Reusable Components**
 - `DataTable` — generic sortable, filterable, selectable table
@@ -290,20 +272,17 @@ export function getDb() {
   return neon(process.env.DATABASE_URL!);
 }
 
-// Usage in query files:
-// lib/db/queries/donors.ts
-import { getDb } from '../index';
+// Raw SQL lives in the route, not a query module:
+// app/api/donors/[id]/route.ts
+import { getDb } from '@/lib/db';
 
-export async function getDonorById(id: bigint) {
-  const sql = getDb();
-  const rows = await sql`
-    SELECT d.*, p.nama AS last_program_nama, p.slug AS last_program_slug
-    FROM donors d
-    LEFT JOIN programs p ON p.id = d.last_donation_program_id
-    WHERE d.id = ${id} AND d.deleted_at IS NULL
-  `;
-  return rows[0] ?? null;
-}
+const sql = getDb();
+const rows = await sql`
+  SELECT d.*, p.nama AS last_program_nama, p.slug AS last_program_slug
+  FROM donors d
+  LEFT JOIN programs p ON p.id = d.last_donation_program_id
+  WHERE d.id = ${id} AND d.deleted_at IS NULL
+`;
 ```
 
 ### 2.4 API Route Pattern
@@ -313,25 +292,27 @@ export async function getDonorById(id: bigint) {
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from '@/lib/auth/session';
 import { checkPermission } from '@/lib/auth/rbac';
-import { listDonors, createDonor } from '@/lib/db/queries/donors';
+import { getDb } from '@/lib/db';
 import { createDonorSchema } from '@/lib/validators/donor';
-import { logAudit } from '@/lib/db/queries/audit-logs';
+import { logAudit } from '@/lib/db/audit';
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const sql = getDb();
   const params = Object.fromEntries(req.nextUrl.searchParams);
-  const data = await listDonors({
-    page: Number(params.page) || 1,
-    limit: Number(params.limit) || 25,
-    search: params.search,
-    status: params.status,
-    sortBy: params.sortBy || 'updated_at',
-    sortDir: params.sortDir || 'desc',
-  });
+  const page = Number(params.page) || 1;
+  const limit = Number(params.limit) || 25;
+  const rows = await sql`
+    SELECT d.id, d.nama_lengkap, d.no_hp_canonical
+    FROM donors d
+    WHERE d.deleted_at IS NULL
+    ORDER BY d.updated_at DESC
+    LIMIT ${limit} OFFSET ${(page - 1) * limit}
+  `;
 
-  return NextResponse.json(data);
+  return NextResponse.json({ rows, page, limit });
 }
 
 export async function POST(req: NextRequest) {
@@ -347,7 +328,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const donor = await createDonor(parsed.data);
+  const sql = getDb();
+  const inserted = await sql`
+    INSERT INTO donors (no_hp_canonical, nama_lengkap, email, status_kontak, sumber_registrasi)
+    VALUES (${parsed.data.noHpCanonical}, ${parsed.data.namaLengkap}, ${parsed.data.email ?? null}, ${parsed.data.statusKontak ?? 'aktif'}, 'manual')
+    RETURNING *
+  `;
+  const donor = inserted[0];
   await logAudit({
     userId: session.user.id,
     donorId: donor.id,
@@ -553,8 +540,9 @@ interface Condition {
 ```
 
 ```typescript
-// lib/db/queries/search-index.ts
-export async function searchDonors(conditions: Condition[], operator: string, page: number, limit: number) {
+// app/api/donors/search/route.ts
+export async function POST(req: NextRequest) {
+  const { conditions, operator, page, limit } = await req.json();
   const sql = getDb();
   const whereClauses = conditions.map(buildWhereClause);
   const joined = whereClauses.join(operator === 'AND' ? ' AND ' : ' OR ');

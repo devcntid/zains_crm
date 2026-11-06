@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
 import { getDb } from "@/lib/db";
-import { logAudit } from "@/lib/db/queries/audit-logs";
+import { logAudit } from "@/lib/db/audit";
+import { jsonSafe } from "@/lib/utils/serialize";
 import { normalizePhone } from "@/lib/utils/phone";
-import { getDonorByPhone } from "@/lib/db/queries/donors";
 
 export async function POST(req: Request) {
   const g = await guard("blast_batches", "import");
@@ -22,16 +22,22 @@ export async function POST(req: Request) {
   for (const r of rows) {
     const phone = normalizePhone(r.phone);
     if (!phone) continue;
-    const donor = await getDonorByPhone(phone);
+    const found = await sql`
+      SELECT d.*, u.nama AS assigned_nama
+      FROM donors d
+      LEFT JOIN users u ON u.id = d.assigned_to
+      WHERE d.no_hp_canonical = ${phone} AND d.deleted_at IS NULL
+    `;
+    const donor = jsonSafe(found[0] ?? null) as { id: string } | null;
     if (!donor) continue;
     const status = r.status === "failed" ? "nomor_mati" : "terkirim";
     if (status === "terkirim") terkirim += 1;
     else gagal += 1;
     await sql`
       INSERT INTO blast_records (donor_id, blast_batch_id, tgl_kirim, status_kirim, raw_vendor_status)
-      VALUES (${String((donor as { id: string }).id)}, ${batchId}, now(), ${status}, ${r.status ?? null})
+      VALUES (${String(donor.id)}, ${batchId}, now(), ${status}, ${r.status ?? null})
     `;
-    await sql`SELECT fn_rebuild_search_index(${String((donor as { id: string }).id)}::bigint)`;
+    await sql`SELECT fn_rebuild_search_index(${String(donor.id)}::bigint)`;
   }
   await sql`
     UPDATE blast_batches SET import_status = 'done', jumlah_target = ${rows.length}, jumlah_terkirim = ${terkirim}, jumlah_gagal = ${gagal}

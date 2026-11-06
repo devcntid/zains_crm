@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/shared/search-select";
+import { btnBlock, btnPrimary } from "@/components/ui/button";
 import { fieldOptions, fieldVisible, type FieldDef } from "@/lib/org/field-value";
 
 type ValueRow = FieldDef & {
@@ -108,11 +109,7 @@ export function DonorDynamicFieldsForm({ donorId, rows }: { donorId: string; row
           );
         })}
       </div>
-      <button
-        type="button"
-        className="mt-4 rounded-xl bg-[var(--primary)] px-3.5 py-2 text-[12px] font-semibold text-white"
-        onClick={() => void save()}
-      >
+      <button type="button" className={`mt-4 ${btnPrimary} ${btnBlock}`} onClick={() => void save()}>
         Simpan field
       </button>
     </div>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FaviconCropper } from "@/components/forms/favicon-cropper";
-import type { OrgProfile } from "@/lib/db/queries/org-profile";
+import type { OrgProfile } from "@/types/org";
 
 export function OrgSettingsForm({ org }: { org: OrgProfile }) {
   const router = useRouter();
@@ -53,11 +53,11 @@ export function OrgSettingsForm({ org }: { org: OrgProfile }) {
           Identitas lembaga
         </h2>
         <label className="mb-1 block text-[12px] text-[#666]">Nama lembaga</label>
-        <input className="mb-3 w-full rounded border px-2 py-1.5" value={form.nama} onChange={(e) => set("nama", e.target.value)} />
+        <input className="mb-3 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={form.nama} onChange={(e) => set("nama", e.target.value)} />
         <label className="mb-1 block text-[12px] text-[#666]">Nama singkat</label>
-        <input className="mb-3 w-full rounded border px-2 py-1.5" value={form.namaSingkat} onChange={(e) => set("namaSingkat", e.target.value)} />
+        <input className="mb-3 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={form.namaSingkat} onChange={(e) => set("namaSingkat", e.target.value)} />
         <label className="mb-1 block text-[12px] text-[#666]">Tagline</label>
-        <input className="mb-3 w-full rounded border px-2 py-1.5" value={form.tagline} onChange={(e) => set("tagline", e.target.value)} />
+        <input className="mb-3 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={form.tagline} onChange={(e) => set("tagline", e.target.value)} />
         <AssetField
           label="Logo lembaga"
           kind="logo"
@@ -209,7 +209,7 @@ function AssetField({
             }}
           />
           <input
-            className="mt-1 w-full rounded border px-2 py-1.5 text-[12px]"
+            className="mt-1 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]"
             value={url}
             onChange={(e) => onUrl(e.target.value)}
             placeholder="Atau tempel URL publik"
@@ -228,7 +228,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       {label}
       <div className="mt-1 flex items-center gap-2">
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
-        <input className="w-full rounded border px-1 py-1 font-mono text-[11px]" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input className="min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 font-mono text-[13px]" value={value} onChange={(e) => onChange(e.target.value)} />
       </div>
     </label>
   );

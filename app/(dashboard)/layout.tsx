@@ -1,12 +1,19 @@
 import { AppShell } from "@/components/layout/sidebar";
 import { getServerSession } from "@/lib/auth/session";
-import { getOrgProfile } from "@/lib/db/queries/org-profile";
+import { GET as getOrgProfile } from "@/app/api/org-profile/route";
+import { fromRoute } from "@/lib/api/from-route";
+import { fallbackOrg, type OrgProfile } from "@/types/org";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
-  const org = await getOrgProfile();
+  let org: OrgProfile;
+  try {
+    org = await fromRoute<OrgProfile>(await getOrgProfile());
+  } catch {
+    org = fallbackOrg();
+  }
   return (
     <div
       style={
@@ -17,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         } as React.CSSProperties
       }
     >
-      <AppShell userNama={session.user.nama} org={org}>
+      <AppShell userNama={session.user.nama} userEmail={session.user.email} org={org}>
         {children}
       </AppShell>
     </div>

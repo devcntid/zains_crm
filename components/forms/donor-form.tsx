@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SearchSelect } from "@/components/shared/search-select";
+import { btnBlock, btnPrimary, btnSecondary } from "@/components/ui/button";
 
 export function DonorCreateButton() {
   const [open, setOpen] = useState(false);
@@ -29,22 +30,22 @@ export function DonorCreateButton() {
 
   return (
     <>
-      <button className="inline-flex min-h-10 items-center gap-1 rounded-xl bg-[var(--primary)] px-3.5 text-[12px] font-semibold text-white" onClick={() => setOpen(true)}>
+      <button className={`${btnPrimary} ${btnBlock}`} onClick={() => setOpen(true)}>
         + Tambah
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
           <div className="w-full rounded-t-xl bg-white p-5 sm:max-w-[400px] sm:rounded-xl">
             <h3 className="mt-0 mb-3 text-primary">Donatur baru</h3>
-            <label className="mb-2 block text-[12px]">Nama</label>
-            <input className="mb-2 w-full rounded border px-2 py-1.5" value={nama} onChange={(e) => setNama(e.target.value)} />
-            <label className="mb-2 block text-[12px]">No. HP</label>
-            <input className="mb-2 w-full rounded border px-2 py-1.5" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <label className="mb-2 block text-[12px]">Email</label>
-            <input className="mb-3 w-full rounded border px-2 py-1.5" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <div className="flex justify-end gap-2">
-              <button className="rounded-xl px-3 py-1.5" onClick={() => setOpen(false)}>Batal</button>
-              <button className="rounded-xl bg-primary px-3 py-1.5 text-white" onClick={submit}>
+            <label className="mb-1 block text-[12px] font-medium text-[#8a8a8a]">Nama</label>
+            <input className="mb-2 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={nama} onChange={(e) => setNama(e.target.value)} />
+            <label className="mb-1 block text-[12px] font-medium text-[#8a8a8a]">No. HP</label>
+            <input className="mb-2 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <label className="mb-1 block text-[12px] font-medium text-[#8a8a8a]">Email</label>
+            <input className="mb-3 min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" className={btnSecondary} onClick={() => setOpen(false)}>Batal</button>
+              <button type="button" className={btnPrimary} onClick={submit}>
                 Simpan
               </button>
             </div>
@@ -93,15 +94,15 @@ export function DonorIdentityForm({
     <div className="mt-3 border-t border-[#eee] pt-3">
       <div className="grid grid-cols-1 gap-2">
         <label className="block text-[12px]">
-          <span className="mb-1 block font-semibold">Nama</span>
-          <input className="w-full rounded-xl border border-[#ddd] px-3 py-2 text-[13px]" value={namaLengkap} onChange={(e) => setNamaLengkap(e.target.value)} />
+          <span className="mb-1 block font-medium text-[#8a8a8a]">Nama</span>
+          <input className="min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={namaLengkap} onChange={(e) => setNamaLengkap(e.target.value)} />
         </label>
         <label className="block text-[12px]">
-          <span className="mb-1 block font-semibold">Email</span>
-          <input className="w-full rounded-xl border border-[#ddd] px-3 py-2 text-[13px]" value={mail} onChange={(e) => setMail(e.target.value)} />
+          <span className="mb-1 block font-medium text-[#8a8a8a]">Email</span>
+          <input className="min-h-10 w-full rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={mail} onChange={(e) => setMail(e.target.value)} />
         </label>
         <label className="block text-[12px]">
-          <span className="mb-1 block font-semibold">Status</span>
+          <span className="mb-1 block font-medium text-[#8a8a8a]">Status</span>
           <SearchSelect
             allowClear={false}
             value={statusKontak}
@@ -110,7 +111,7 @@ export function DonorIdentityForm({
           />
         </label>
       </div>
-      <button type="button" className="mt-3 rounded-xl bg-[var(--primary)] px-3.5 py-2 text-[12px] font-semibold text-white" onClick={() => void save()}>
+      <button type="button" className={`mt-3 ${btnPrimary} ${btnBlock}`} onClick={() => void save()}>
         Simpan profil
       </button>
     </div>
@@ -146,8 +147,8 @@ export function ProspectNoteForm({ donorId }: { donorId: string }) {
         }))}
         onChange={setRespon}
       />
-      <input className="min-h-10 min-w-0 flex-1 rounded border px-2" value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan" />
-      <button className="min-h-10 rounded-xl bg-[var(--primary)] px-3 text-white" type="submit">
+      <input className="min-h-10 min-w-0 flex-1 rounded-xl border border-[#ddd] bg-white px-3 text-[13px]" value={catatan} onChange={(e) => setCatatan(e.target.value)} placeholder="Catatan" />
+      <button className={`${btnPrimary} ${btnBlock}`} type="submit">
         Catat
       </button>
     </form>

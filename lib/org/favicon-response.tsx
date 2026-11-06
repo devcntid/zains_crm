@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
-import { getOrgProfile } from "@/lib/db/queries/org-profile";
+import { GET as getOrgProfile } from "@/app/api/org-profile/route";
+import { fromRoute } from "@/lib/api/from-route";
+import { fallbackOrg, type OrgProfile } from "@/types/org";
 
 async function imageSrc(url: string) {
   const res = await fetch(url, { cache: "no-store" });
@@ -11,7 +13,12 @@ async function imageSrc(url: string) {
 }
 
 export async function orgIconImage(size: number) {
-  const org = await getOrgProfile();
+  let org: OrgProfile;
+  try {
+    org = await fromRoute<OrgProfile>(await getOrgProfile());
+  } catch {
+    org = fallbackOrg();
+  }
   const remote = org.favicon_url || org.logo_url;
   let src: string | null = null;
   if (remote) {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
 import { uploadOrgAsset } from "@/lib/blob/org-assets";
-import { logAudit } from "@/lib/db/queries/audit-logs";
-import { setOrgAssetUrl } from "@/lib/db/queries/org-profile";
+import { getDb } from "@/lib/db";
+import { logAudit } from "@/lib/db/audit";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,22 @@ export async function POST(req: Request) {
   }
   try {
     const url = await uploadOrgAsset(kind, file);
-    await setOrgAssetUrl(kind, url);
+    const sql = getDb();
+    if (kind === "logo") {
+      await sql`
+        UPDATE org_profile
+        SET logo_url = ${url}, is_seed_default = FALSE, updated_at = now()
+        WHERE id = 1
+        RETURNING *
+      `;
+    } else {
+      await sql`
+        UPDATE org_profile
+        SET favicon_url = ${url}, is_seed_default = FALSE, updated_at = now()
+        WHERE id = 1
+        RETURNING *
+      `;
+    }
     await logAudit({
       userId: g.session!.user.id,
       action: "update",

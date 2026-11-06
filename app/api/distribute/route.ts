@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
 import { getDb } from "@/lib/db";
-import { assignDonors } from "@/lib/db/queries/donors";
-import { logAudit } from "@/lib/db/queries/audit-logs";
+import { logAudit } from "@/lib/db/audit";
 
 export async function POST(req: Request) {
   const g = await guard("donors", "assign");
@@ -18,7 +17,20 @@ export async function POST(req: Request) {
     RETURNING id
   `;
   for (let i = 0; i < donorIds.length; i++) {
-    await assignDonors([donorIds[i]], picIds[i % picIds.length], g.session!.user.id);
+    const id = donorIds[i];
+    const assignedTo = picIds[i % picIds.length];
+    const current = await sql`SELECT assigned_to FROM donors WHERE id = ${id}`;
+    const from = current[0] ? String((current[0] as { assigned_to: string | null }).assigned_to) : null;
+    await sql`
+      UPDATE donors SET assigned_to = ${assignedTo}, assigned_at = now(),
+        follow_up_status = COALESCE(follow_up_status, 'in_progress')
+      WHERE id = ${id}
+    `;
+    await sql`
+      INSERT INTO donor_assignment_history (donor_id, assigned_from, assigned_to, assigned_by, reason)
+      VALUES (${id}, ${from}, ${assignedTo}, ${g.session!.user.id}, 'bulk assign')
+    `;
+    await sql`SELECT fn_rebuild_search_index(${id}::bigint)`;
   }
   await logAudit({ userId: g.session!.user.id, action: "assign", entityType: "distribute_batch", entityId: String((batch[0] as { id: string }).id) });
   return NextResponse.json(batch[0]);

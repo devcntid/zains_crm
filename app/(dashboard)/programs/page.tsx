@@ -1,11 +1,12 @@
 import { Bookmark } from "lucide-react";
 import { EntityPage } from "@/components/shared/entity-page";
-import { listPrograms } from "@/lib/db/queries/catalog";
+import { GET as listPrograms } from "@/app/api/programs/route";
+import { fromRoute } from "@/lib/api/from-route";
 
 export const metadata = { title: "Programs — CRM RN", description: "Master program" };
 
 export default async function Page() {
-  const rows = (await listPrograms()) as Array<Record<string, unknown>>;
+  const { rows } = await fromRoute<{ rows: Array<Record<string, unknown>> }>(await listPrograms());
   return (
     <EntityPage
       title="Programs"

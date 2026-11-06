@@ -23,3 +23,15 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+textarea {
+  font-weight: 400;
+  color: #5c5c5c;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([class*="border-0"]),
+textarea:not([class*="border-0"]) {
+  border: 1px solid #ddd;
+  border-radius: 0.75rem;
+}

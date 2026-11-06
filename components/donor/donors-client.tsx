@@ -47,6 +47,7 @@ function dynamicColumns(fields: FieldDef[]): Column<Row>[] {
     .map((fd) => ({
       key: dynKey(fd.slug),
       label: fd.label,
+      numeric: fd.tipe === "number",
       hideable: true,
       defaultHidden: !fieldVisible(fd, "list"),
       includeInExport: fieldVisible(fd, "export"),
@@ -98,7 +99,7 @@ export function DonorsTable({ rows, fields, tags }: { rows: Row[]; fields: Field
       exportFilename="donatur"
       onRow={(r) => router.push(`/donors/${r.id}`)}
       columns={[
-        { key: "nama_lengkap", label: "Nama", render: (d) => <strong>{d.nama_lengkap}</strong> },
+        { key: "nama_lengkap", label: "Nama" },
         { key: "no_hp_canonical", label: "No. HP" },
         { key: "status_kontak", label: "Status", render: (d) => <Badge>{d.status_kontak}</Badge> },
         {
@@ -110,6 +111,7 @@ export function DonorsTable({ rows, fields, tags }: { rows: Row[]; fields: Field
         {
           key: "total_donation_lifetime",
           label: "Total",
+          numeric: true,
           render: (d) => fmtRp(toNum(d.total_donation_lifetime)),
           exportValue: (d) => fmtRp(toNum(d.total_donation_lifetime)),
         },

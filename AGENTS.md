@@ -11,8 +11,9 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
 **Role:** Database Engineer — handles all SQL, migrations, and data layer work.
 
 **Scope:**
-- `lib/db/queries/*.ts` — write and modify raw SQL query functions
+- `app/api/**/route.ts` — raw SQL for each model lives in its route handler
 - `lib/db/index.ts` — database connection configuration
+- `lib/db/audit.ts` — shared `logAudit` insert only
 - `drizzle/schema.ts` — Drizzle schema for migration generation ONLY
 - `drizzle/seed.ts` — idempotent seed script
 - `lib/db/migrations/` — review generated migrations
@@ -20,7 +21,7 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
 **Rules:**
 1. ALL queries are raw SQL using `@neondatabase/serverless` tagged template literals
 2. NEVER use Drizzle ORM query builder (`.select()`, `.insert()`, etc.) — only `drizzle-kit` CLI
-3. Every query function must be typed: accept typed params, return typed results
+3. SQL in each route is typed: accept typed params, return typed JSON
 4. Use parameterized queries — NEVER string concatenation for values
 5. For dynamic WHERE clauses (query builder), use `sql.unsafe()` with pre-validated fragments
 6. Always use partial indexes with `WHERE deleted_at IS NULL` for soft-deleted tables
@@ -31,7 +32,7 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
 
 **Tools:** PostgreSQL, Neon DB serverless driver, Drizzle Kit CLI
 
-**Example task:** "Add a query function to search donors by multiple program participation with temporal filters"
+**Example task:** "Add the raw SQL in the donors search route for program participation with temporal filters"
 
 ---
 
@@ -49,13 +50,13 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
 **Rules:**
 1. Every route handler follows the exact pattern:
    ```
-   getServerSession() → checkPermission() → validate(zod) → queryFunction() → logAudit() → NextResponse.json()
+   getServerSession() → checkPermission() → validate(zod) → raw SQL in this file → logAudit() → NextResponse.json()
    ```
-2. GET routes: parse `searchParams`, call list/get query function, return paginated JSON
-3. POST/PUT routes: parse body with Zod, call create/update query, audit log, return entity
+2. GET routes: parse `searchParams`, run the list/get SQL in the route, return paginated JSON
+3. POST/PUT routes: parse body with Zod, run the create/update SQL in the route, audit log, return entity
 4. DELETE routes: soft delete (set `deleted_at`), audit log, return `{ success: true }`
 5. Error responses: `{ error: string | ZodFlattenedError }` with correct HTTP status
-6. Never write SQL in route files — always call functions from `lib/db/queries/`
+6. Raw SQL lives in `app/api/{model}/route.ts`. Do not pool queries in `lib/db/queries/`. `logAudit` stays in `lib/db/audit.ts`
 7. File upload routes use `@vercel/blob` for storage
 8. Export routes stream response for large datasets
 9. All mutations must be logged to `audit_logs`
@@ -85,7 +86,7 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
    - React hooks (useState, useEffect, useRef)
    - Browser APIs
    - Interactive libraries (Recharts, dnd-kit, Tiptap)
-2. Data fetching in Server Components via `async/await` calling query functions directly
+2. Server Components load data by calling the route handler in-process (`fromRoute`). Do not `fetch` the app's own `/api` URL, and do not write SQL in pages
 3. Client Components receive data as props from parent Server Components
 4. Use shadcn/ui components — DO NOT create custom primitives
 5. Icons: Lucide React ONLY — NO emoji except ✓
@@ -177,7 +178,7 @@ Agent definitions untuk Claude Code multi-agent workflow pada project CRM RN. Se
 - `vitest.config.ts` — unit test config
 
 **Rules:**
-1. Unit tests for every query function in `lib/db/queries/`
+1. Unit tests for raw SQL behavior in `app/api/**/route.ts`
 2. Unit tests for every Zod schema in `lib/validators/`
 3. Unit tests for utility functions (phone normalization, date formatting)
 4. Integration tests for API routes (mock DB, test full request lifecycle)
@@ -232,7 +233,7 @@ Phase 5: QA
 
 - Agents share context via this document + `claude.md` + `trd.md`
 - DB schema is the single source of truth (`erd_single_v2.md`)
-- Query functions are the contract between `db-engineer` and `api-engineer`
+- Raw SQL inside `app/api/**/route.ts` is the contract between `db-engineer` and `api-engineer`
 - TypeScript types in `types/` are the contract between `api-engineer` and `fe-engineer`
 - API routes are the contract between `fe-engineer`/`extension-engineer` and backend
 

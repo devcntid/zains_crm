@@ -157,19 +157,19 @@ export function QueryBuilder({
 
   return (
     <div className="mb-3 rounded-[10px] border border-[#d9efe9] bg-white p-3 md:p-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-[12px] font-bold text-[var(--primary)]">Filter donatur</div>
-        <div className="flex items-center gap-1 rounded-xl bg-[#f4f7f6] p-0.5 text-[12px]">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#f4f7f6] p-1 text-[13px]">
           <button
             type="button"
-            className={`rounded-[10px] px-2.5 py-1 font-semibold ${match === "and" ? "bg-white text-primary shadow-sm" : "text-[#666]"}`}
+            className={`min-h-11 rounded-xl px-3 font-semibold ${match === "and" ? "bg-white text-primary shadow-sm" : "text-[#666]"}`}
             onClick={() => setMatch("and")}
           >
             Semua (AND)
           </button>
           <button
             type="button"
-            className={`rounded-[10px] px-2.5 py-1 font-semibold ${match === "or" ? "bg-white text-primary shadow-sm" : "text-[#666]"}`}
+            className={`min-h-11 rounded-xl px-3 font-semibold ${match === "or" ? "bg-white text-primary shadow-sm" : "text-[#666]"}`}
             onClick={() => setMatch("or")}
           >
             Salah satu (OR)
@@ -225,27 +225,28 @@ export function QueryBuilder({
             )}
             <button
               type="button"
-              className="h-8 w-8 rounded-xl text-[16px] text-[#999] hover:bg-[#f0f0f0]"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-[#ddd] bg-white text-[13px] font-semibold text-[#c0392b] sm:h-11 sm:w-11 sm:border-0 sm:bg-transparent sm:text-[16px] sm:font-normal sm:text-[#999]"
               aria-label="Hapus kondisi"
               onClick={() => setConditions(conditions.filter((_, idx) => idx !== i))}
             >
-              ×
+              <span className="sm:hidden">Hapus kondisi</span>
+              <span className="hidden sm:inline">×</span>
             </button>
           </div>
         );
       })}
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
         <button
           type="button"
-          className="min-h-10 flex-1 rounded-xl bg-[#e8e8e8] px-3 text-[12px] font-semibold sm:flex-none"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#e8e8e8] px-4 text-[13px] font-semibold sm:w-auto"
           onClick={() => setConditions([...conditions, { field: extraFields[0]?.slug || "segmen", op: "eq", value: "" }])}
         >
           + Kondisi
         </button>
-        <button type="button" className="min-h-10 flex-1 rounded-xl bg-[var(--primary)] px-3 text-[12px] font-semibold text-white sm:flex-none" onClick={() => void run()}>
+        <button type="button" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--primary)] px-4 text-[13px] font-semibold text-white sm:w-auto" onClick={() => void run()}>
           Jalankan
         </button>
-        <button type="button" className="min-h-10 flex-1 rounded-xl bg-[var(--accent)] px-3 text-[12px] font-semibold text-white sm:flex-none" onClick={() => void save()}>
+        <button type="button" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white sm:w-auto" onClick={() => void save()}>
           Simpan segmen
         </button>
       </div>

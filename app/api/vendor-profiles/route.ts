@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
-import { listVendorProfiles } from "@/lib/db/queries/catalog";
 import { getDb } from "@/lib/db";
-import { logAudit } from "@/lib/db/queries/audit-logs";
+import { logAudit } from "@/lib/db/audit";
+import { jsonSafe } from "@/lib/utils/serialize";
 
 export async function GET() {
   const g = await guard("vendor_profiles", "read");
   if (g.error) return g.error;
-  return NextResponse.json({ rows: await listVendorProfiles() });
+  const sql = getDb();
+  return NextResponse.json({ rows: jsonSafe(await sql`SELECT * FROM vendor_profiles ORDER BY is_default DESC, nama_vendor`) });
 }
+
 export async function POST(req: Request) {
   const g = await guard("vendor_profiles", "create");
   if (g.error) return g.error;

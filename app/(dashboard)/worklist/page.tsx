@@ -1,12 +1,15 @@
 import { ClipboardList } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
-import { worklist } from "@/lib/db/queries/donors";
+import { GET as worklist } from "@/app/api/worklist/route";
+import { fromRoute, internalRequest } from "@/lib/api/from-route";
 import { fmtRp, toNum } from "@/lib/utils/format";
 
 export const metadata = { title: "Worklist — CRM RN", description: "Worklist PIC" };
 
 export default async function WorklistPage() {
-  const rows = (await worklist()) as Array<Record<string, unknown>>;
+  const { rows } = await fromRoute<{ rows: Array<Record<string, unknown>> }>(
+    await worklist(internalRequest("/api/worklist")),
+  );
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -24,8 +27,8 @@ export default async function WorklistPage() {
           { key: "segmen_rfm", label: "Segmen" },
           { key: "follow_up_status", label: "Follow-up" },
           { key: "follow_up_due_date", label: "Due" },
-          { key: "last_donation_nominal", label: "Last" },
-          { key: "priority_score", label: "Prioritas" },
+          { key: "last_donation_nominal", label: "Last", numeric: true },
+          { key: "priority_score", label: "Prioritas", numeric: true },
         ]}
       />
     </div>

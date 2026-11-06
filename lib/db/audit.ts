@@ -29,14 +29,3 @@ export async function logAudit(input: {
     )
   `;
 }
-
-export async function listAuditLogs(limit = 100) {
-  const sql = getDb();
-  return sql`
-    SELECT a.*, u.nama AS user_nama
-    FROM audit_logs a
-    LEFT JOIN users u ON u.id = a.user_id
-    ORDER BY a.created_at DESC
-    LIMIT ${limit}
-  `;
-}

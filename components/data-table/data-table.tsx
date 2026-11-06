@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, Columns3, Download, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SearchSelect } from "@/components/shared/search-select";
+import { btnSecondary } from "@/components/ui/button";
 import { downloadXlsx } from "@/lib/utils/export-xlsx";
 import { formatCell } from "@/lib/utils/format";
 
@@ -12,12 +13,17 @@ export type Column<T> = {
   render?: (row: T) => React.ReactNode;
   exportValue?: (row: T) => string | number | null | undefined;
   className?: string;
+  numeric?: boolean;
   hideable?: boolean;
   defaultHidden?: boolean;
   includeInExport?: boolean;
 };
 
 const PAGE_SIZES = [10, 25, 50, 100] as const;
+
+function numericClass(numeric?: boolean) {
+  return numeric ? "w-px whitespace-nowrap text-right tabular-nums" : "";
+}
 
 export function DataTable<T extends { id?: string | number }>({
   columns,
@@ -99,68 +105,72 @@ export function DataTable<T extends { id?: string | number }>({
   }
 
   const searchBar = (
-    <div className="flex items-center gap-2 border-b border-[#eee] px-3 py-2">
-      <Search size={16} className="shrink-0 text-[#888]" />
-      <input
-        className="min-h-9 w-full border-0 bg-transparent text-[13px] outline-none"
-        placeholder="Cari di tabel…"
-        value={term}
-        onChange={(e) => {
-          setTerm(e.target.value);
-          setPage(1);
-        }}
-      />
-      <div className="relative shrink-0">
+    <div className="flex flex-col gap-2 border-b border-[#eee] px-3 py-2.5 md:flex-row md:items-center">
+      <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2">
+        <Search size={16} className="shrink-0 text-[#888]" />
+        <input
+          className="min-h-11 w-full border-0 bg-transparent text-[13px] outline-none"
+          placeholder="Cari di tabel…"
+          value={term}
+          onChange={(e) => {
+            setTerm(e.target.value);
+            setPage(1);
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0">
+        <div className="relative">
+          <button
+            type="button"
+            className={`${btnSecondary} w-full md:w-auto`}
+            onClick={() => setColsOpen((v) => !v)}
+          >
+            <Columns3 size={16} />
+            Kolom
+          </button>
+          {colsOpen && (
+            <div className="absolute right-0 z-20 mt-1 max-h-64 w-56 overflow-auto rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-lg">
+              {columns.map((c) => (
+                <label key={c.key} className="flex min-h-10 items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] hover:bg-[#f6fffe]">
+                  <input
+                    type="checkbox"
+                    checked={!hidden.has(c.key)}
+                    disabled={c.hideable === false && !hidden.has(c.key) && visibleColumns.length <= 1}
+                    onChange={(e) => {
+                      setHidden((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.delete(c.key);
+                        else if (visibleColumns.length > 1) next.add(c.key);
+                        return next;
+                      });
+                    }}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           type="button"
-          className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-[#ddd] bg-white px-2.5 text-[12px] font-semibold text-[#333]"
-          onClick={() => setColsOpen((v) => !v)}
+          className={`${btnSecondary} w-full md:w-auto`}
+          disabled={sorted.length === 0}
+          onClick={() => void exportExcel()}
         >
-          <Columns3 size={14} />
-          Kolom
+          <Download size={16} />
+          Excel
         </button>
-        {colsOpen && (
-          <div className="absolute right-0 z-20 mt-1 max-h-64 w-56 overflow-auto rounded-xl border border-[#e5e5e5] bg-white p-2 shadow-lg">
-            {columns.map((c) => (
-              <label key={c.key} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] hover:bg-[#f6fffe]">
-                <input
-                  type="checkbox"
-                  checked={!hidden.has(c.key)}
-                  disabled={c.hideable === false && !hidden.has(c.key) && visibleColumns.length <= 1}
-                  onChange={(e) => {
-                    setHidden((prev) => {
-                      const next = new Set(prev);
-                      if (e.target.checked) next.delete(c.key);
-                      else if (visibleColumns.length > 1) next.add(c.key);
-                      return next;
-                    });
-                  }}
-                />
-                {c.label}
-              </label>
-            ))}
-          </div>
-        )}
       </div>
-      <button
-        type="button"
-        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-[#ddd] bg-white px-2.5 text-[12px] font-semibold text-[#333] disabled:opacity-40"
-        disabled={sorted.length === 0}
-        onClick={() => void exportExcel()}
-      >
-        <Download size={14} />
-        Excel
-      </button>
     </div>
   );
 
   const pager = (
-    <div className="flex flex-col gap-2 px-3 py-2.5 text-[12px] text-[#555] sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2 px-3 py-2.5 text-[13px] text-[#555] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <span>
           {total === 0 ? "Tidak ada data" : `Menampilkan ${from}–${to} dari ${total}`}
         </span>
-        <label className="inline-flex items-center gap-1.5">
+        <label className="inline-flex items-center gap-2">
           <span className="text-[#888]">Baris</span>
           <SearchSelect
             className="w-[5.5rem]"
@@ -175,27 +185,27 @@ export function DataTable<T extends { id?: string | number }>({
           />
         </label>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-2 sm:flex sm:justify-end">
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#ddd] bg-white disabled:opacity-40"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#ddd] bg-white disabled:opacity-40"
           disabled={safePage <= 1}
           onClick={() => goto(safePage - 1)}
           aria-label="Halaman sebelumnya"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={18} />
         </button>
-        <span className="min-w-[4.5rem] px-1 text-center font-semibold">
+        <span className="min-w-[4.5rem] px-1 text-center text-[13px] font-semibold">
           {safePage} / {pageCount}
         </span>
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[#ddd] bg-white disabled:opacity-40"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#ddd] bg-white disabled:opacity-40"
           disabled={safePage >= pageCount}
           onClick={() => goto(safePage + 1)}
           aria-label="Halaman berikutnya"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={18} />
         </button>
       </div>
     </div>
@@ -221,15 +231,15 @@ export function DataTable<T extends { id?: string | number }>({
               >
                 <div className="flex items-start gap-2">
                   <span className="mt-0.5 shrink-0 text-[11px] font-bold text-[#888]">{start + i + 1}.</span>
-                  <div className="min-w-0 text-[14px] font-semibold text-[#1a1a1a]">
+                  <div className="min-w-0 text-[14px] font-normal text-[#5c5c5c]">
                     {titleCol?.render ? titleCol.render(row) : formatCell((row as Record<string, unknown>)[titleCol?.key ?? ""])}
                   </div>
                 </div>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
                   {restCols.map((c) => (
-                    <div key={c.key} className="min-w-0">
-                      <dt className="text-[10px] font-bold tracking-wide text-[#888] uppercase">{c.label}</dt>
-                      <dd className="truncate text-[#333]">
+                    <div key={c.key} className={c.numeric ? "min-w-0 text-right" : "min-w-0"}>
+                      <dt className="text-[11px] font-medium text-[#8a8a8a]">{c.label}</dt>
+                      <dd className={`mt-0.5 text-[13px] font-normal text-[#5c5c5c] ${c.numeric ? "whitespace-nowrap tabular-nums" : "truncate"}`}>
                         {c.render ? c.render(row) : formatCell((row as Record<string, unknown>)[c.key])}
                       </dd>
                     </div>
@@ -252,14 +262,14 @@ export function DataTable<T extends { id?: string | number }>({
                 {visibleColumns.map((c) => (
                   <th
                     key={c.key}
-                    className={`cursor-pointer bg-[var(--primary)] px-3 py-2.5 ${c.className ?? ""}`}
+                    className={`cursor-pointer bg-[var(--primary)] px-3 py-2.5 ${numericClass(c.numeric)} ${c.className ?? ""}`}
                     onClick={() => {
                       setSortKey(c.key);
                       setDir((d) => (sortKey === c.key && d === "asc" ? "desc" : "asc"));
                       setPage(1);
                     }}
                   >
-                    <span className="inline-flex min-h-6 items-center gap-1">
+                    <span className={`inline-flex min-h-6 items-center gap-1 ${c.numeric ? "w-full justify-end" : ""}`}>
                       {c.label}
                       {sortKey === c.key ? (dir === "asc" ? " ↑" : " ↓") : ""}
                     </span>
@@ -292,7 +302,7 @@ export function DataTable<T extends { id?: string | number }>({
                     )}
                     <td className="px-3 py-2 tabular-nums text-[#888]">{start + i + 1}</td>
                     {visibleColumns.map((c) => (
-                      <td key={c.key} className="px-3 py-2">
+                      <td key={c.key} className={`px-3 py-2 font-normal text-[#5c5c5c] ${numericClass(c.numeric)}`}>
                         {c.render ? c.render(row) : formatCell((row as Record<string, unknown>)[c.key])}
                       </td>
                     ))}

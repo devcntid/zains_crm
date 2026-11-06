@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { guard } from "@/lib/api/guard";
 import { getDb } from "@/lib/db";
-import { logAudit } from "@/lib/db/queries/audit-logs";
+import { logAudit } from "@/lib/db/audit";
 
 export async function POST() {
   const g = await guard("rfm", "update");

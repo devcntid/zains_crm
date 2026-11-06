@@ -1,12 +1,21 @@
 import { Activity, AlertTriangle, TrendingUp, Users, Wallet } from "lucide-react";
 import DashboardCharts from "@/components/dashboard/charts";
-import { dashboardStats } from "@/lib/db/queries/donors";
+import { GET as dashboardStats } from "@/app/api/dashboard/route";
+import { fromRoute } from "@/lib/api/from-route";
 import { fmtRp, toNum } from "@/lib/utils/format";
 
 export const metadata = { title: "Dashboard — CRM RN", description: "Ringkasan CRM" };
 
 export default async function DashboardPage() {
-  const stats = await dashboardStats();
+  const stats = await fromRoute<{
+    totals: Record<string, number | string>;
+    rfm: Array<{ segmen: string; n: number }>;
+    trend: Array<{ bulan: string; total: string | number; n: number }>;
+    workload: Array<{ nama: string; n: number }>;
+    byProgram: Array<{ nama: string; total: string | number }>;
+    byStatus: Array<{ name: string; value: number }>;
+    byFollow: Array<{ name: string; n: number }>;
+  }>(await dashboardStats());
   const totals = stats.totals;
   const rfm = (stats.rfm as Array<{ segmen: string; n: number }>).map((r) => ({ name: r.segmen, value: r.n }));
   const trend = (stats.trend as Array<{ bulan: string; total: string | number; n: number }>)

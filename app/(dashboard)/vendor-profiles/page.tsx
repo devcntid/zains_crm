@@ -1,11 +1,12 @@
 import { Plug } from "lucide-react";
 import { EntityPage } from "@/components/shared/entity-page";
-import { listVendorProfiles } from "@/lib/db/queries/catalog";
+import { GET as listVendorProfiles } from "@/app/api/vendor-profiles/route";
+import { fromRoute } from "@/lib/api/from-route";
 
 export const metadata = { title: "Vendors — CRM RN", description: "Profil vendor blast" };
 
 export default async function Page() {
-  const rows = (await listVendorProfiles()) as Array<Record<string, unknown>>;
+  const { rows } = await fromRoute<{ rows: Array<Record<string, unknown>> }>(await listVendorProfiles());
   return (
     <EntityPage
       title="Vendor Profiles"
